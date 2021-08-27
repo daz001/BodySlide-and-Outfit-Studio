@@ -15,7 +15,10 @@ Modifications - by daz001
 		6) Enter any text that you would like prepending to outfit name, slider set file, shape data folder and shape data file - including spaces (ie. 'BHUNP, Physics, p, P, SSE')
 		7) Click OK, wait for the process to complete and you can then instantly save the project (which will use the updated project name values) or adjust weights and then save.
 		
-![alt text](https://i.imgur.com/RNCu6Lf.png)
+		
+<img src="https://your-image-url.type" width="400">
+
+
 
 BodySlide-and-Outfit-Studio
 ===========================
