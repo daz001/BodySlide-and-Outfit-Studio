@@ -1,3 +1,22 @@
+Modifications - by daz001
+===========================
+* Added the ability to keep zap sliders when loading a reference body
+* Added 'Slider->Bake Conversion Ref' menu item
+   - This menu item can be used wehn converting between body references in order to exclude the need to 'export to nif with reference'. Instead, this will simply bake the bodyslide used from the conversion reference into the mesh and you can simply continue using the mesh.
+* Added 'File->Convert Body Reference' menu item
+   - This will allow you to 1 click convert between body references (ie. CBBE to BHUNP)
+   - All settings that are set on the wizard dialog are remembered between sessions - so you only need to enter them once for all of the outfits you wish to convert
+   - How to use:
+		1) Open your outfit project
+		2) open the wizard ('File->Convert Body Reference')
+		3) Select the conversion reference (ie. Convert: CBBE SE to BHUNP)
+		4) Select the new body reference (ie. BHUNP 3BBB Advanced ver 2)
+		5) Enter any text that you would like removing from outfit name, slider set file, shape data folder and shape data file - including spaces (ie. 'CBBE, Physics, p, P, SSE')
+		6) Enter any text that you would like prepending to outfit name, slider set file, shape data folder and shape data file - including spaces (ie. 'BHUNP, Physics, p, P, SSE')
+		7) Click OK, wait for the process to complete and you can then instantly save the project (which will use the updated project name values) or adjust weights and then save.
+		
+![alt text](https://i.imgur.com/RNCu6Lf.png)
+
 BodySlide-and-Outfit-Studio
 ===========================
 
