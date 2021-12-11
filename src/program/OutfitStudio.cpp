@@ -3613,6 +3613,8 @@ void OutfitStudioFrame::OnConvertBodyReference(wxCommandEvent& WXUNUSED(event)) 
 		LoadDialogChoice(dlg, "npNewRefChoice");
 		LoadDialogText(dlg, "npRemoveText");
 		LoadDialogText(dlg, "npAppendText");
+		LoadDialogText(dlg, "npDeleteShapesText");
+		LoadDialogText(dlg, "npAddBonesText");
 		LoadDialogCheckBox(dlg, "chkKeepZapSliders");
 		LoadDialogCheckBox(dlg, "chkSkipConformPopup");
 		LoadDialogCheckBox(dlg, "chkSkipCopyBonesPopup");
@@ -3648,6 +3650,12 @@ void OutfitStudioFrame::OnConvertBodyReference(wxCommandEvent& WXUNUSED(event)) 
 	
 	wxString appendToProjectText = XRCCTRL(dlg, "npAppendText", wxTextCtrl)->GetValue();
 	OutfitStudioConfig.SetValue("npAppendText", appendToProjectText.ToStdString());
+
+	wxString deleteShapesText = XRCCTRL(dlg, "npDeleteShapesText", wxTextCtrl)->GetValue();
+	OutfitStudioConfig.SetValue("npDeleteShapesText", deleteShapesText.ToStdString());
+
+	wxString addBonesText = XRCCTRL(dlg, "npAddBonesText", wxTextCtrl)->GetValue();
+	OutfitStudioConfig.SetValue("npAddBonesText", addBonesText.ToStdString());
 	
 	Config.SaveConfig(Config["AppDir"] + "/Config.xml");
 
@@ -3685,9 +3693,22 @@ void OutfitStudioFrame::OnConvertBodyReference(wxCommandEvent& WXUNUSED(event)) 
 		project->outfitName = project->mOutfitName.ToStdString();
 		UpdateTitle();
 	}
-
+	auto originalShapes = project->GetWorkNif()->GetShapes(); // get outfit shapes
+	if(!deleteShapesText.IsEmpty())
+	{
+		UpdateProgress(5, _("Deleting Shapes..."));
+		wxStringTokenizer tkz(deleteShapesText, wxT(","));
+		while (tkz.HasMoreTokens()) {
+			wxString token = tkz.GetNextToken();
+			for(auto &shape : originalShapes) {
+				auto shapeName = wxString(shape->name.get().c_str());
+				if(shapeName.Contains(token))
+					project->DeleteShape(shape);
+			}
+		}
+	}
 	project->DeleteShape(project->GetBaseShape());
-	auto outfitShapes = project->GetWorkNif()->GetShapes(); // get outfit shapes
+	auto remainingOutfitShapes = project->GetWorkNif()->GetShapes(); // get outfit shapes
 
 	UpdateProgress(5, _("Loading conversion reference..."));
 	StartSubProgress(5, 10);
@@ -3703,7 +3724,7 @@ void OutfitStudioFrame::OnConvertBodyReference(wxCommandEvent& WXUNUSED(event)) 
 	StartSubProgress(20, 35);
 
 	// We shouldn't ever need to skip using default for this case as a correct conversion reference should always conform accurately
-	if (AlertProgressError(ConformShapes(outfitShapes, true), "Conform Error", "Failed to conform shapes"))
+	if (AlertProgressError(ConformShapes(remainingOutfitShapes, true), "Conform Error", "Failed to conform shapes"))
 		return;
 	
 	UpdateProgress(35, _("Updating conversion Slider..."));
@@ -3729,19 +3750,29 @@ void OutfitStudioFrame::OnConvertBodyReference(wxCommandEvent& WXUNUSED(event)) 
 	
 	UpdateProgress(65, _("Copying bones..."));
 	StartSubProgress(65, 85);
-	if (AlertProgressError(CopyBoneWeightForShapes(outfitShapes, skipCopyBonesPopup), "Copy Bone Weights Error", "Failed to copy bone weights"))
+	if (AlertProgressError(CopyBoneWeightForShapes(remainingOutfitShapes, skipCopyBonesPopup), "Copy Bone Weights Error", "Failed to copy bone weights"))
 		return;
 
 	UpdateProgress(85, _("Conforming outfit parts..."));
 	StartSubProgress(85, 100);
-	if (AlertProgressError(ConformShapes(outfitShapes, skipConformPopup), "Conform Error", "Failed to conform shapes"))
+	if (AlertProgressError(ConformShapes(remainingOutfitShapes, skipConformPopup), "Conform Error", "Failed to conform shapes"))
 		return;
 
 	if(deleteReferenceOnCompleted) {
 		auto allShapes = project->GetWorkNif()->GetShapes();
 		for(auto &s : allShapes) {
-			if(std::find(outfitShapes.begin(), outfitShapes.end(), s) == outfitShapes.end())
+			if(std::find(remainingOutfitShapes.begin(), remainingOutfitShapes.end(), s) == remainingOutfitShapes.end())
 				project->DeleteShape(s);
+		}
+	}
+
+	if(!addBonesText.IsEmpty())
+	{
+		UpdateProgress(100, _("Adding Bones..."));
+		wxStringTokenizer tkz(addBonesText, wxT(","));
+		while (tkz.HasMoreTokens()) {
+			wxString token = tkz.GetNextToken();
+			project->AddBoneRef(token.ToStdString());
 		}
 	}
 	

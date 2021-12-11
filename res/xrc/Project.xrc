@@ -1273,6 +1273,94 @@
 				<border>10</border>
 				<object class="wxStaticBoxSizer">
 					<orient>wxVERTICAL</orient>
+					<label>Additional</label>
+					<object class="spacer">
+						<option>1</option>
+						<flag>wxEXPAND</flag>
+						<border>5</border>
+						<size>0,5</size>
+					</object>
+					<object class="sizeritem">
+						<option>0</option>
+						<flag>wxLEFT|wxRIGHT|wxTOP|wxEXPAND</flag>
+						<object class="wxStaticText" name="lbLoadRef">
+							<label>5) Automatically remove the following shapes before conversion (comma delimited):</label>
+						</object>
+					</object>
+					
+					<object class="sizeritem">
+						<option>0</option>
+						<flag>wxEXPAND</flag>
+						<border>5</border>
+						<object class="wxFlexGridSizer">
+							<rows>0</rows>
+							<cols>2</cols>
+							<vgap>0</vgap>
+							<hgap>0</hgap>
+							<growablecols>1</growablecols>
+							<growablerows></growablerows>
+							<object class="sizeritem">
+								<option>1</option>
+								<flag>wxALL|wxEXPAND</flag>
+								<border>5</border>
+								<minsize>170,20</minsize>
+								<object class="wxStaticText">
+									<style>wxRB_GROUP</style>
+									<label>Shapes to Delete</label>
+									<value translate="0">1</value>
+								</object>
+							</object>
+							<object class="sizeritem">
+								<border>5</border>
+								<flag>wxALL|wxEXPAND</flag>
+								<object class="wxTextCtrl" name="npDeleteShapesText"></object>
+							</object>
+						</object>
+					</object>
+					<object class="sizeritem">
+						<option>0</option>
+						<flag>wxLEFT|wxRIGHT|wxTOP|wxEXPAND</flag>
+						<object class="wxStaticText" name="lbLoadRef">
+							<label>6) Automatically add the following bones after conversion(comma delimited):</label>
+						</object>
+					</object>
+					<object class="sizeritem">
+						<option>0</option>
+						<flag>wxEXPAND</flag>
+						<border>5</border>
+						<object class="wxFlexGridSizer">
+							<rows>0</rows>
+							<cols>2</cols>
+							<vgap>0</vgap>
+							<hgap>0</hgap>
+							<growablecols>1</growablecols>
+							<growablerows></growablerows>
+							<object class="sizeritem">
+								<option>1</option>
+								<flag>wxALL|wxEXPAND</flag>
+								<border>5</border>
+								<minsize>170,20</minsize>
+								<object class="wxStaticText">
+									<style>wxRB_GROUP</style>
+									<label>Bone Names to Add</label>
+									<value translate="0">1</value>
+								</object>
+							</object>
+							<object class="sizeritem">
+								<border>5</border>
+								<flag>wxALL|wxEXPAND</flag>
+								<object class="wxTextCtrl" name="npAddBonesText"></object>
+							</object>
+						</object>
+					</object>
+				</object>
+			</object>
+			<object class="sizeritem">
+				<option>0</option>
+				<flag>wxALL|wxEXPAND</flag>
+				<border>10</border>
+				<object class="wxStaticBoxSizer">
+					<orient>wxVERTICAL</orient>
 					<label>Options</label>
 					<object class="sizeritem">
 						<option>0</option>
