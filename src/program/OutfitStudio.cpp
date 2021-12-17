@@ -3623,6 +3623,7 @@ void OutfitStudioFrame::OnConvertBodyReference(wxCommandEvent& WXUNUSED(event)) 
 		LoadDialogCheckBox(dlg, "chkSkipConformPopup");
 		LoadDialogCheckBox(dlg, "chkSkipCopyBonesPopup");
 		LoadDialogCheckBox(dlg, "chkDeleteReferenceOnComplete");
+		LoadDialogCheckBox(dlg, "chkDeleteUnreferencedNodesOnComplete");
 
 		result = dlg.ShowModal();
 	}
@@ -3642,6 +3643,9 @@ void OutfitStudioFrame::OnConvertBodyReference(wxCommandEvent& WXUNUSED(event)) 
 
 	bool deleteReferenceOnCompleted = (XRCCTRL(dlg, "chkDeleteReferenceOnComplete", wxCheckBox)->IsChecked());
 	OutfitStudioConfig.SetBoolValue("chkDeleteReferenceOnComplete", deleteReferenceOnCompleted);
+
+	bool deleteUnreferencedNodesOnComplete = (XRCCTRL(dlg, "chkDeleteUnreferencedNodesOnComplete", wxCheckBox)->IsChecked());
+	OutfitStudioConfig.SetBoolValue("chkDeleteUnreferencedNodesOnComplete", deleteUnreferencedNodesOnComplete);
 	
 	wxString conversionRefTemplate = XRCCTRL(dlg, "npConvRefChoice", wxChoice)->GetStringSelection();
 	OutfitStudioConfig.SetValue("npConvRefChoice", conversionRefTemplate.ToStdString());
@@ -3697,6 +3701,9 @@ void OutfitStudioFrame::OnConvertBodyReference(wxCommandEvent& WXUNUSED(event)) 
 		project->outfitName = project->mOutfitName.ToStdString();
 		UpdateTitle();
 	}
+	
+	project->ResetTransforms();
+	
 	auto originalShapes = project->GetWorkNif()->GetShapes(); // get outfit shapes
 	if(!deleteShapesText.IsEmpty())
 	{
@@ -3777,14 +3784,6 @@ void OutfitStudioFrame::OnConvertBodyReference(wxCommandEvent& WXUNUSED(event)) 
 	if (AlertProgressError(ConformShapes(remainingOutfitShapes, skipConformPopup), "Conform Error", "Failed to conform shapes"))
 		return;
 
-	if(deleteReferenceOnCompleted) {
-		auto allShapes = project->GetWorkNif()->GetShapes();
-		for(auto &s : allShapes) {
-			if(std::find(remainingOutfitShapes.begin(), remainingOutfitShapes.end(), s) == remainingOutfitShapes.end())
-				project->DeleteShape(s);
-		}
-	}
-
 	if(!addBonesText.IsEmpty())
 	{
 		UpdateProgress(100, _("Adding Bones..."));
@@ -3794,6 +3793,23 @@ void OutfitStudioFrame::OnConvertBodyReference(wxCommandEvent& WXUNUSED(event)) 
 			project->AddBoneRef(token.ToStdString());
 		}
 	}
+	
+	if(deleteReferenceOnCompleted) {
+		auto allShapes = project->GetWorkNif()->GetShapes();
+		for(auto &s : allShapes) {
+			if(std::find(remainingOutfitShapes.begin(), remainingOutfitShapes.end(), s) == remainingOutfitShapes.end())
+				project->DeleteShape(s);
+		}
+	}
+
+	int deletionCount = 0;
+	auto workNif = project->GetWorkNif();
+	if (workNif)
+		workNif->DeleteUnreferencedNodes(&deletionCount);
+
+	auto allShapes = project->GetWorkNif()->GetShapes();
+	for (auto &s : allShapes)
+		glView->RecalcNormals(s->name.get());
 	
 	RefreshGUIFromProj();
 	ApplySliders();
