@@ -415,7 +415,7 @@ void ShapeProperties::OnSetTextures(wxCommandEvent& WXUNUSED(event)) {
 			auto dataPath = Config["GameDataPath"];
 			std::vector<std::string> texFiles(10);
 			for (int i = 0; i < 10; i++) {
-				std::string texPath = stTexGrid->GetCellValue(i, 0);
+				std::string texPath = stTexGrid->GetCellValue(i, 0).ToStdString();
 				std::string texPath_bs = ToBackslashes(texPath);
 				nif->SetTextureSlot(shape, texPath_bs, i);
 
@@ -487,7 +487,7 @@ void ShapeProperties::OnCopyShaderFromShape(wxCommandEvent& WXUNUSED(event)) {
 	}
 
 	if (choices.GetCount() > 0) {
-		std::string shapeName = wxGetSingleChoice(_("Please choose a shape to copy from"), _("Choose shape"), choices, 0, this).ToUTF8();
+		std::string shapeName = wxGetSingleChoice(_("Please choose a shape to copy from"), _("Choose shape"), choices, 0, this).ToStdString();
 		if (shapeName.empty())
 			return;
 
@@ -834,7 +834,7 @@ void ShapeProperties::ApplyChanges() {
 
 	NiShader* shader = nif->GetShader(shape);
 	if (shader) {
-		std::string name = shaderName->GetValue();
+		std::string name = shaderName->GetValue().ToStdString();;
 		uint32_t type = shaderType->GetSelection();
 
 		shader->name.get() = name;
