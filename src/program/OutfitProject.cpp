@@ -2560,8 +2560,14 @@ void OutfitProject::ApplyShapeMeshUndo(NiShape* shape, const UndoStateShape &uss
 			// ...in diff data
 			for (const UndoStateVertexSliderDiff &diff : usv.diffs) {
 				std::string targetDataName = activeSet[diff.sliderName].TargetDataName(target);
-				if (targetDataName.empty())
+				if (targetDataName.empty()) {
 					targetDataName = target + diff.sliderName;
+
+					if (IsBaseShape(shape))
+						baseDiffData.AddEmptySet(targetDataName, target);
+					else
+						morpher.AddEmptySet(shape->name.get(), diff.sliderName);
+				}
 
 				std::unordered_map<uint16_t, Vector3>* diffSet;
 				if (IsBaseShape(shape))
@@ -2710,15 +2716,15 @@ bool OutfitProject::PrepareCollapseVertex(NiShape* shape, UndoStateShape &uss, c
 			uss.delTris.push_back(UndoStateTriangle{ ti, tris[ti], ti < triParts.size() ? triParts[ti] : -1 });
 		}
 
-		bool nopreferred = true;
-		uint32_t pti = 0;
+		uint32_t pti = NIF_NPOS;
 		if (nverts.size() == 3) {
 			// Determine preferred triangle to replace.
+			pti = 0;
+
 			if (!triParts.empty() && ntris.size() == 3 &&
 				triParts[ntris[0]] != triParts[ntris[1]] &&
 				triParts[ntris[1]] == triParts[ntris[2]]) {
 				pti = 1;
-				nopreferred = false;
 			}
 
 			// Put new triangle in uss.
@@ -2728,7 +2734,7 @@ bool OutfitProject::PrepareCollapseVertex(NiShape* shape, UndoStateShape &uss, c
 
 		// Collect list of non-replaced triangles for triangle renumbering.
 		for (uint32_t vti = 0; vti < static_cast<uint32_t>(ntris.size()); ++vti)
-			if (vti != pti || nopreferred)
+			if (vti != pti)
 				nrtris.push_back(ntris[vti]);
 	}
 

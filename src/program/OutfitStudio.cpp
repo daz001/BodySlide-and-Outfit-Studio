@@ -289,7 +289,8 @@ wxBEGIN_EVENT_TABLE(OutfitStudioFrame, wxFrame)
 
 	EVT_SPLITTER_SASH_POS_CHANGED(XRCID("splitter"), OutfitStudioFrame::OnSashPosChanged)
 	EVT_SPLITTER_SASH_POS_CHANGED(XRCID("splitterRight"), OutfitStudioFrame::OnSashPosChanged)
-	EVT_MOVE_END(OutfitStudioFrame::OnMoveWindow)
+	EVT_MOVE_START(OutfitStudioFrame::OnMoveWindowStart)
+	EVT_MOVE_END(OutfitStudioFrame::OnMoveWindowEnd)
 	EVT_SIZE(OutfitStudioFrame::OnSetSize)
 wxEND_EVENT_TABLE()
 
@@ -567,7 +568,7 @@ bool OutfitStudio::SetDefaultConfig() {
 	Config.SetDefaultValue("LogLevel", "3");
 	Config.SetDefaultBoolValue("UseSystemLanguage", false);
 	Config.SetDefaultBoolValue("Input/LeftMousePan", false);
-	Config.SetDefaultBoolValue("Input/BrushSettingsNearCursor", false);
+	Config.SetDefaultBoolValue("Input/BrushSettingsNearCursor", true);
 	Config.SetDefaultValue("Lights/Ambient", 20);
 	Config.SetDefaultValue("Lights/Frontal", 20);
 	Config.SetDefaultValue("Lights/Directional0", 60);
@@ -659,6 +660,8 @@ bool OutfitStudio::ShowSetup() {
 		wxMessageBox("Failed to load Setup.xrc file!", "Error", wxICON_ERROR);
 		return false;
 	}
+
+	frame->CloseBrushSettings();
 
 	wxDialog* setup = xrc->LoadDialog(nullptr, "dlgSetup");
 	if (setup) {
@@ -963,11 +966,11 @@ OutfitStudioFrame::OutfitStudioFrame(const wxPoint& pos, const wxSize& size) {
 	toolBarV = (wxToolBar*)FindWindowByName("toolBarV");
 
 	if (toolBarH) {
-		auto brushSettings = reinterpret_cast<wxButton*>(toolBarH->FindWindowByName("brushSettings"));
+		brushSettings = reinterpret_cast<wxButton*>(toolBarH->FindWindowByName("brushSettings"));
 		if (brushSettings)
 			brushSettings->Bind(wxEVT_BUTTON, &OutfitStudioFrame::OnBrushSettings, this);
 
-		auto fovSlider = reinterpret_cast<wxSlider*>(toolBarH->FindWindowByName("fovSlider"));
+		fovSlider = reinterpret_cast<wxSlider*>(toolBarH->FindWindowByName("fovSlider"));
 		if (fovSlider)
 			fovSlider->Bind(wxEVT_SLIDER, &OutfitStudioFrame::OnFieldOfViewSlider, this);
 	}
@@ -1230,6 +1233,8 @@ void OutfitStudioFrame::OnMenuItem(wxCommandEvent& event) {
 }
 
 void OutfitStudioFrame::OnPackProjects(wxCommandEvent& WXUNUSED(event)) {
+	CloseBrushSettings();
+
 	wxXmlResource* xrc = wxXmlResource::Get();
 	wxDialog* packProjects = xrc->LoadDialog(this, "dlgPackProjects");
 	if (packProjects) {
@@ -1904,7 +1909,11 @@ void OutfitStudioFrame::OnSashPosChanged(wxSplitterEvent& event) {
 		OutfitStudioConfig.SetValue("OutfitStudioFrame.sashrightpos", pos);
 }
 
-void OutfitStudioFrame::OnMoveWindow(wxMoveEvent& event) {
+void OutfitStudioFrame::OnMoveWindowStart(wxMoveEvent& WXUNUSED(event)) {
+	CloseBrushSettings();
+}
+
+void OutfitStudioFrame::OnMoveWindowEnd(wxMoveEvent& event) {
 	wxPoint p = GetPosition();
 	OutfitStudioConfig.SetValue("OutfitStudioFrame.x", p.x);
 	OutfitStudioConfig.SetValue("OutfitStudioFrame.y", p.y);
@@ -1912,6 +1921,8 @@ void OutfitStudioFrame::OnMoveWindow(wxMoveEvent& event) {
 }
 
 void OutfitStudioFrame::OnSetSize(wxSizeEvent& event) {
+	CloseBrushSettings();
+
 	bool maximized = IsMaximized();
 	if (!maximized) {
 		wxSize p = event.GetSize();
@@ -1976,6 +1987,8 @@ bool OutfitStudioFrame::SaveProjectAs() {
 
 	if (HasUnweightedCheck())
 		return false;
+
+	CloseBrushSettings();
 
 	if (wxXmlResource::Get()->LoadObject((wxObject*)&dlg, this, "dlgSaveProject", "wxDialog")) {
 		XRCCTRL(dlg, "sssNameCopy", wxButton)->Bind(wxEVT_BUTTON, &OutfitStudioFrame::OnSSSNameCopy, this);
@@ -3072,41 +3085,35 @@ void OutfitStudioFrame::SelectTool(ToolID tool) {
 }
 
 void OutfitStudioFrame::CloseBrushSettings() {
-	if (brushSettingsPopup) {
-		brushSettingsPopup->Destroy();
-		brushSettingsPopup = nullptr;
-	}
-
 	if (brushSettingsPopupTransient) {
 		brushSettingsPopupTransient->Destroy();
 		brushSettingsPopupTransient = nullptr;
 	}
 }
 
-void OutfitStudioFrame::PopupBrushSettings(bool transient) {
+void OutfitStudioFrame::PopupBrushSettings(wxWindow* popupAt) {
 	CloseBrushSettings();
 
 	if (!glView->GetBrushMode())
 		return;
 
-	if (transient) {
-		wxPoint mousePos = wxGetMousePosition();
-		wxSize popupSize(10, 10);
+	wxPoint popupPos;
+	wxSize popupSize;
 
-		brushSettingsPopupTransient = new wxBrushSettingsPopupTransient(this);
-		brushSettingsPopupTransient->Position(mousePos, popupSize);
-		brushSettingsPopupTransient->Popup();
+	if (popupAt) {
+		popupPos = popupAt->GetScreenPosition();
+		popupSize.y = popupAt->GetSize().y;
 	}
 	else {
-		auto brushSettings = XRCCTRL(*this, "brushSettings", wxButton);
-
-		wxPoint mousePos = brushSettings->GetScreenPosition();
-		wxSize popupSize(0, brushSettings->GetSize().y);
-
-		brushSettingsPopup = new wxBrushSettingsPopup(this);
-		brushSettingsPopup->Position(mousePos, popupSize);
-		brushSettingsPopup->Show();
+		popupPos = wxGetMousePosition();
+		popupSize.x = 10;
+		popupSize.y = 10;
 	}
+
+	bool stayOpen = popupAt != nullptr;
+	brushSettingsPopupTransient = new wxBrushSettingsPopupTransient(this, stayOpen);
+	brushSettingsPopupTransient->Position(popupPos, popupSize);
+	brushSettingsPopupTransient->Popup();
 
 	UpdateBrushSettings();
 }
@@ -3115,13 +3122,6 @@ void OutfitStudioFrame::UpdateBrushSettings() {
 	TweakBrush* brush = glView->GetActiveBrush();
 	if (!brush)
 		return;
-
-	if (brushSettingsPopup) {
-		brushSettingsPopup->SetBrushSize(glView->GetBrushSize());
-		brushSettingsPopup->SetBrushStrength(brush->getStrength());
-		brushSettingsPopup->SetBrushFocus(brush->getFocus());
-		brushSettingsPopup->SetBrushSpacing(brush->getSpacing());
-	}
 
 	if (brushSettingsPopupTransient) {
 		brushSettingsPopupTransient->SetBrushSize(glView->GetBrushSize());
@@ -3265,6 +3265,7 @@ void OutfitStudioFrame::OnNewProject(wxCommandEvent& WXUNUSED(event)) {
 	if (!CheckPendingChanges())
 		return;
 
+	CloseBrushSettings();
 	UpdateReferenceTemplates();
 
 	if (wxXmlResource::Get()->LoadObject((wxObject*)&wiz, this, "wizNewProject", "wxWizard")) {
@@ -3434,6 +3435,7 @@ void OutfitStudioFrame::OnLoadReference(wxCommandEvent& WXUNUSED(event)) {
 		return;
 	}
 
+	CloseBrushSettings();
 	UpdateReferenceTemplates();
 
 	wxDialog dlg;
@@ -3788,6 +3790,8 @@ void OutfitStudioFrame::OnConvertBodyReference(wxCommandEvent& WXUNUSED(event)) 
 void OutfitStudioFrame::OnLoadOutfit(wxCommandEvent& WXUNUSED(event)) {
 	wxDialog dlg;
 	int result = wxID_CANCEL;
+
+	CloseBrushSettings();
 
 	if (wxXmlResource::Get()->LoadObject((wxObject*)&dlg, this, "dlgLoadOutfit", "wxDialog")) {
 		XRCCTRL(dlg, "npWorkFilename", wxFilePickerCtrl)->Bind(wxEVT_FILEPICKER_CHANGED, &OutfitStudioFrame::OnLoadOutfitFP_File, this);
@@ -6309,14 +6313,13 @@ void OutfitStudioFrame::OnShowFloor(wxCommandEvent& event) {
 }
 
 void OutfitStudioFrame::OnBrushSettings(wxCommandEvent& WXUNUSED(event)) {
-	if (brushSettingsPopup)
+	if (brushSettingsPopupTransient && brushSettingsPopupTransient->IsShown())
 		CloseBrushSettings();
 	else
-		PopupBrushSettings(false);
+		PopupBrushSettings(brushSettings);
 }
 
-void OutfitStudioFrame::OnFieldOfViewSlider(wxCommandEvent& event) {
-	auto fovSlider = reinterpret_cast<wxSlider*>(event.GetEventObject());
+void OutfitStudioFrame::OnFieldOfViewSlider(wxCommandEvent& WXUNUSED(event)) {
 	int fieldOfView = fovSlider->GetValue();
 
 	wxStaticText* fovLabel = (wxStaticText*)toolBarH->FindWindowByName("fovLabel");
@@ -7071,6 +7074,8 @@ void OutfitStudioFrame::OnLoadPreset(wxCommandEvent& WXUNUSED(event)) {
 	std::string choice;
 	bool hi = true;
 
+	CloseBrushSettings();
+
 	presets.LoadPresets(GetProjectPath() + "/SliderPresets", choice, names, true);
 	presets.GetPresetNames(names);
 
@@ -7136,6 +7141,8 @@ void OutfitStudioFrame::OnSavePreset(wxCommandEvent& WXUNUSED(event)) {
 		wxMessageBox(_("There are no sliders loaded!"), _("Error"), wxICON_ERROR, this);
 		return;
 	}
+
+	CloseBrushSettings();
 
 	SliderSetGroupCollection groupCollection;
 	groupCollection.LoadGroups(GetProjectPath() + "/SliderGroups");
@@ -7846,6 +7853,8 @@ void OutfitStudioFrame::ShowSliderProperties(const std::string& sliderName) {
 	if (!project->SliderIndexFromName(sliderName, curSlider))
 		return;
 
+	CloseBrushSettings();
+
 	wxDialog dlg;
 	if (wxXmlResource::Get()->LoadDialog(&dlg, this, "dlgSliderProp")) {
 		wxTextCtrl* edSliderName = XRCCTRL(dlg, "edSliderName", wxTextCtrl);
@@ -8068,6 +8077,8 @@ int OutfitStudioFrame::ConformShapes(std::vector<NiShape*> shapes, bool silent) 
 }
 
 bool OutfitStudioFrame::ShowConform(ConformOptions& options, bool silent) {
+	CloseBrushSettings();
+
 	wxDialog dlg;
 	if (wxXmlResource::Get()->LoadDialog(&dlg, this, "dlgConforming")) {
 		XRCCTRL(dlg, "proximityRadiusSlider", wxSlider)->Bind(wxEVT_SLIDER, [&dlg](wxCommandEvent&) {
@@ -8187,6 +8198,8 @@ void OutfitStudioFrame::OnMirror(wxCommandEvent& event) {
 }
 
 void OutfitStudioFrame::OnRenameShape(wxCommandEvent& WXUNUSED(event)) {
+	CloseBrushSettings();
+
 	if (!activeItem) {
 		wxMessageBox(_("There is no shape selected!"), _("Error"));
 		return;
@@ -8243,6 +8256,8 @@ void OutfitStudioFrame::OnEnterClose(wxKeyEvent& event) {
 }
 
 void OutfitStudioFrame::OnMoveShape(wxCommandEvent& WXUNUSED(event)) {
+	CloseBrushSettings();
+
 	if (!activeItem) {
 		wxMessageBox(_("There is no shape selected!"), _("Error"));
 		return;
@@ -8395,6 +8410,8 @@ void OutfitStudioFrame::OnMoveShape(wxCommandEvent& WXUNUSED(event)) {
 }
 
 void OutfitStudioFrame::OnScaleShape(wxCommandEvent& WXUNUSED(event)) {
+	CloseBrushSettings();
+
 	if (!activeItem) {
 		wxMessageBox(_("There is no shape selected!"), _("Error"));
 		return;
@@ -8584,6 +8601,8 @@ void OutfitStudioFrame::OnScaleShape(wxCommandEvent& WXUNUSED(event)) {
 }
 
 void OutfitStudioFrame::OnRotateShape(wxCommandEvent& WXUNUSED(event)) {
+	CloseBrushSettings();
+
 	if (!activeItem) {
 		wxMessageBox(_("There is no shape selected!"), _("Error"));
 		return;
@@ -8906,6 +8925,8 @@ void OutfitStudioFrame::OnCopyGeo(wxCommandEvent& WXUNUSED(event)) {
 	if (shapeList.size() < 2)
 		return;
 
+	CloseBrushSettings();
+
 	for (const std::string &shape : shapeList) {
 		sourceChoice->AppendString(shape);
 		targetChoice->AppendString(shape);
@@ -8966,6 +8987,8 @@ void OutfitStudioFrame::OnDupeShape(wxCommandEvent& WXUNUSED(event)) {
 			wxMessageBox(_("You can only copy shapes into an outfit, and there is no outfit in the current project. Load one first!"));
 			return;
 		}
+
+		CloseBrushSettings();
 
 		do {
 			std::string result{wxGetTextFromUser(_("Please enter a unique name for the duplicated shape."), _("Duplicate Shape")).ToUTF8()};
@@ -9042,6 +9065,8 @@ void OutfitStudioFrame::OnAddBone(wxCommandEvent& WXUNUSED(event)) {
 	wxDialog dlg;
 	if (!wxXmlResource::Get()->LoadDialog(&dlg, this, "dlgSkeletonBones"))
 		return;
+
+	CloseBrushSettings();
 
 	dlg.SetSize(450, 470);
 	dlg.CenterOnParent();
@@ -9139,6 +9164,8 @@ void OutfitStudioFrame::OnAddCustomBone(wxCommandEvent& WXUNUSED(event)) {
 	if (!wxXmlResource::Get()->LoadDialog(&dlg, this, "dlgCustomBone"))
 		return;
 
+	CloseBrushSettings();
+
 	dlg.Bind(wxEVT_CHAR_HOOK, &OutfitStudioFrame::OnEnterClose, this);
 	FillParentBoneChoice(dlg, contextBone);
 
@@ -9186,6 +9213,8 @@ void OutfitStudioFrame::OnEditBone(wxCommandEvent& WXUNUSED(event)) {
 	wxDialog dlg;
 	if (!wxXmlResource::Get()->LoadDialog(&dlg, this, "dlgCustomBone"))
 		return;
+
+	CloseBrushSettings();
 
 	dlg.Bind(wxEVT_CHAR_HOOK, &OutfitStudioFrame::OnEnterClose, this);
 
@@ -9291,6 +9320,8 @@ bool OutfitStudioFrame::HasUnweightedCheck() {
 }
 
 bool OutfitStudioFrame::ShowWeightCopy(WeightCopyOptions& options, bool silent) {
+	CloseBrushSettings();
+
 	wxDialog dlg;
 	if (wxXmlResource::Get()->LoadDialog(&dlg, this, "dlgCopyWeights")) {
 		XRCCTRL(dlg, "proximityRadiusSlider", wxSlider)->Bind(wxEVT_SLIDER, [&dlg](wxCommandEvent&) {
@@ -9762,6 +9793,8 @@ void OutfitStudioFrame::OnRemoveSkinning(wxCommandEvent& WXUNUSED(event)) {
 }
 
 void OutfitStudioFrame::OnShapeProperties(wxCommandEvent& WXUNUSED(event)) {
+	CloseBrushSettings();
+
 	if (!activeItem) {
 		wxMessageBox(_("There is no shape selected!"), _("Error"));
 		return;
@@ -10584,6 +10617,8 @@ void wxGLPanel::OnKeys(wxKeyEvent& event) {
 			if (!gls.GetCursorVertex(cursorPos.x, cursorPos.y, &vertIndex))
 				return;
 
+			os->CloseBrushSettings();
+
 			wxDialog dlg;
 			if (wxXmlResource::Get()->LoadDialog(&dlg, os, "dlgMoveVertex")) {
 				NiShape* shape = os->activeItem->GetShape();
@@ -10669,12 +10704,15 @@ void wxGLPanel::OnKeys(wxKeyEvent& event) {
 				}
 			}
 			else {
-				if (os->brushSettingsPopup) {
+				if (os->brushSettingsPopupTransient && os->brushSettingsPopupTransient->IsShown()) {
 					os->CloseBrushSettings();
 				}
 				else {
-					bool transient = Config.GetBoolValue("Input/BrushSettingsNearCursor");
-					os->PopupBrushSettings(transient);
+					bool brushSettingsNearCursor = Config.GetBoolValue("Input/BrushSettingsNearCursor");
+					if (brushSettingsNearCursor)
+						os->PopupBrushSettings();
+					else
+						os->PopupBrushSettings(os->brushSettings);
 				}
 			}
 		}
@@ -11227,28 +11265,30 @@ bool wxGLPanel::SelectVertex(const wxPoint& screenPos) {
 }
 
 bool wxGLPanel::StartPickVertex() {
-	if (hoverMeshName.empty() || hoverPoint < 0)
+	if (lastHitResult.hitMeshName.empty() || lastHitResult.hoverPoint < 0)
 		return false;
 
-	mouseDownMeshName = hoverMeshName;
-	mouseDownPoint = hoverPoint;
+	mouseDownMeshName = lastHitResult.hitMeshName;
+	mouseDownPoint = lastHitResult.hoverPoint;
 	return true;
 }
 
 void wxGLPanel::UpdatePickVertex(const wxPoint& screenPos) {
-	bool hit = gls.UpdateCursor(screenPos.x, screenPos.y, bGlobalBrushCollision, &hoverMeshName, &hoverPoint);
-	if (!hit || hoverMeshName != mouseDownMeshName || hoverPoint != mouseDownPoint)
+	GLSurface::CursorHitResult hitResult{};
+
+	bool hit = gls.UpdateCursor(screenPos.x, screenPos.y, bGlobalBrushCollision, &hitResult);
+	if (!hit || hitResult.hitMeshName != mouseDownMeshName || hitResult.hoverPoint != mouseDownPoint)
 		gls.HidePointCursor();
 
 	gls.RenderOneFrame();
 }
 
 void wxGLPanel::EndPickVertex() {
-	if (hoverMeshName != mouseDownMeshName || hoverPoint != mouseDownPoint)
+	if (lastHitResult.hitMeshName != mouseDownMeshName || lastHitResult.hoverPoint != mouseDownPoint)
 		return;
 
 	// Clear PickVertex state so no accidents can happen
-	hoverMeshName.clear();
+	lastHitResult.hitMeshName.clear();
 	gls.HidePointCursor();
 
 	if (activeTool == ToolID::CollapseVertex)
@@ -11295,28 +11335,30 @@ void wxGLPanel::ClickCollapseVertex() {
 }
 
 bool wxGLPanel::StartPickEdge() {
-	if (hoverMeshName.empty() || (hoverEdge.p1 == 0 && hoverEdge.p2 == 0))
+	if (lastHitResult.hitMeshName.empty() || (lastHitResult.hoverEdge.p1 == 0 && lastHitResult.hoverEdge.p2 == 0))
 		return false;
 
-	mouseDownMeshName = hoverMeshName;
-	mouseDownEdge = hoverEdge;
+	mouseDownMeshName = lastHitResult.hitMeshName;
+	mouseDownEdge = lastHitResult.hoverEdge;
 	return true;
 }
 
 void wxGLPanel::UpdatePickEdge(const wxPoint& screenPos) {
-	bool hit = gls.UpdateCursor(screenPos.x, screenPos.y, bGlobalBrushCollision, &hoverMeshName, &hoverPoint, nullptr, nullptr, &hoverEdge);
-	if (!hit || hoverMeshName != mouseDownMeshName || !hoverEdge.CompareIndices(mouseDownEdge))
+	GLSurface::CursorHitResult hitResult{};
+
+	bool hit = gls.UpdateCursor(screenPos.x, screenPos.y, bGlobalBrushCollision, &hitResult);
+	if (!hit || hitResult.hitMeshName != mouseDownMeshName || !hitResult.hoverEdge.CompareIndices(mouseDownEdge))
 		gls.HideSegCursor();
 
 	gls.RenderOneFrame();
 }
 
 void wxGLPanel::EndPickEdge() {
-	if (hoverMeshName != mouseDownMeshName || !hoverEdge.CompareIndices(mouseDownEdge))
+	if (lastHitResult.hitMeshName != mouseDownMeshName || !lastHitResult.hoverEdge.CompareIndices(mouseDownEdge))
 		return;
 
 	// Clear PickEdge state so no accidents can happen
-	hoverMeshName.clear();
+	lastHitResult.hitMeshName.clear();
 	gls.HideSegCursor();
 
 	if (activeTool == ToolID::FlipEdge)
@@ -11574,20 +11616,20 @@ bool wxGLPanel::RedoStroke() {
 
 void wxGLPanel::ShowRotationCenter(bool show) {
 	if (show) {
-		RotationCenterMesh = gls.AddVis3dSphere(gls.camRotOffset, 0.15f, Vector3(1.0f, 0.0f, 1.0f), "RotationCenterMesh");
-		RotationCenterMesh->prop.alpha = 0.5f;
+		RotationCenterMesh = gls.AddVis3dSphere(gls.camRotOffset, 0.08f, Vector3(1.0f, 0.0f, 1.0f), "RotationCenterMesh");
+		RotationCenterMesh->prop.alpha = 0.25f;
 		RotationCenterMesh->bVisible = true;
 
-		RotationCenterMeshRingX = gls.AddVis3dRing(gls.camRotOffset, Vector3(1.0f, 0.0f, 0.0f), 0.35f, 0.01f, Vector3(1.0f, 0.0f, 0.0f), "RotationCenterMeshRingX");
-		RotationCenterMeshRingX->prop.alpha = 0.5f;
+		RotationCenterMeshRingX = gls.AddVis3dRing(gls.camRotOffset, Vector3(1.0f, 0.0f, 0.0f), 0.25f, 0.01f, Vector3(1.0f, 0.0f, 0.0f), "RotationCenterMeshRingX");
+		RotationCenterMeshRingX->prop.alpha = 0.25f;
 		RotationCenterMeshRingX->bVisible = true;
 
-		RotationCenterMeshRingY = gls.AddVis3dRing(gls.camRotOffset, Vector3(0.0f, 1.0f, 0.0f), 0.35f, 0.01f, Vector3(0.0f, 1.0f, 0.0f), "RotationCenterMeshRingY");
-		RotationCenterMeshRingY->prop.alpha = 0.5f;
+		RotationCenterMeshRingY = gls.AddVis3dRing(gls.camRotOffset, Vector3(0.0f, 1.0f, 0.0f), 0.25f, 0.01f, Vector3(0.0f, 1.0f, 0.0f), "RotationCenterMeshRingY");
+		RotationCenterMeshRingY->prop.alpha = 0.25f;
 		RotationCenterMeshRingY->bVisible = true;
 
-		RotationCenterMeshRingZ = gls.AddVis3dRing(gls.camRotOffset, Vector3(0.0f, 0.0f, 1.0f), 0.35f, 0.01f, Vector3(0.0f, 0.0f, 1.0f), "RotationCenterMeshRingZ");
-		RotationCenterMeshRingZ->prop.alpha = 0.5f;
+		RotationCenterMeshRingZ = gls.AddVis3dRing(gls.camRotOffset, Vector3(0.0f, 0.0f, 1.0f), 0.25f, 0.01f, Vector3(0.0f, 0.0f, 1.0f), "RotationCenterMeshRingZ");
+		RotationCenterMeshRingZ->prop.alpha = 0.25f;
 		RotationCenterMeshRingZ->bVisible = true;
 	}
 	else {
@@ -11608,12 +11650,18 @@ void wxGLPanel::ShowTransformTool(bool show) {
 
 	if (show) {
 		XMoveMesh = gls.AddVis3dArrow(xformCenter, Vector3(1.0f, 0.0f, 0.0f), 0.04f, 0.15f, 1.75f, Vector3(1.0f, 0.0f, 0.0f), "XMoveMesh");
+		XMoveMesh->prop.alpha = 0.6f;
 		YMoveMesh = gls.AddVis3dArrow(xformCenter, Vector3(0.0f, 1.0f, 0.0f), 0.04f, 0.15f, 1.75f, Vector3(0.0f, 1.0f, 0.0f), "YMoveMesh");
+		YMoveMesh->prop.alpha = 0.6f;
 		ZMoveMesh = gls.AddVis3dArrow(xformCenter, Vector3(0.0f, 0.0f, 1.0f), 0.04f, 0.15f, 1.75f, Vector3(0.0f, 0.0f, 1.0f), "ZMoveMesh");
+		ZMoveMesh->prop.alpha = 0.6f;
 
 		XRotateMesh = gls.AddVis3dRing(xformCenter, Vector3(1.0f, 0.0f, 0.0f), 1.25f, 0.04f, Vector3(1.0f, 0.0f, 0.0f), "XRotateMesh");
+		XRotateMesh->prop.alpha = 0.6f;
 		YRotateMesh = gls.AddVis3dRing(xformCenter, Vector3(0.0f, 1.0f, 0.0f), 1.25f, 0.04f, Vector3(0.0f, 1.0f, 0.0f), "YRotateMesh");
+		YRotateMesh->prop.alpha = 0.6f;
 		ZRotateMesh = gls.AddVis3dRing(xformCenter, Vector3(0.0f, 0.0f, 1.0f), 1.25f, 0.04f, Vector3(0.0f, 0.0f, 1.0f), "ZRotateMesh");
+		ZRotateMesh->prop.alpha = 0.6f;
 
 		XScaleMesh = gls.AddVis3dCube(xformCenter + Vector3(0.75f, 0.0f, 0.0f), Vector3(1.0f, 0.0f, 0.0f), 0.12f, Vector3(1.0f, 0.0f, 0.0f), "XScaleMesh");
 		YScaleMesh = gls.AddVis3dCube(xformCenter + Vector3(0.0f, 0.75f, 0.0f), Vector3(0.0f, 1.0f, 0.0f), 0.12f, Vector3(0.0f, 1.0f, 0.0f), "YScaleMesh");
@@ -12210,6 +12258,14 @@ void wxGLPanel::OnMouseMove(wxMouseEvent& event) {
 
 	if (rbuttonDown) {
 		isRDragging = true;
+
+		if (wxGetKeyState(WXK_ALT)) {
+			if (lastHitResult.hoverPoint != -1) {
+				rotationCenterMode = RotationCenterMode::Picked;
+				gls.camRotOffset = lastHitResult.hoverRealCoord;
+			}
+		}
+
 		if (wxGetKeyState(WXK_SHIFT)) {
 			gls.PanCamera(x - lastX, y - lastY);
 		}
@@ -12217,13 +12273,6 @@ void wxGLPanel::OnMouseMove(wxMouseEvent& event) {
 			gls.TurnTableCamera(x - lastX);
 			gls.PitchCamera(y - lastY);
 			ShowRotationCenter();
-		}
-
-		if (wxGetKeyState(WXK_ALT)) {
-			if (hoverPoint != -1) {
-				rotationCenterMode = RotationCenterMode::Picked;
-				gls.camRotOffset = hoverCoord;
-			}
 		}
 
 		UpdateTransformTool();
@@ -12263,21 +12312,17 @@ void wxGLPanel::OnMouseMove(wxMouseEvent& event) {
 	}
 
 	if (!rbuttonDown && !lbuttonDown) {
-		hoverMeshName.clear();
-		hoverPoint = -1;
-		hoverCoord.Zero();
-		hoverEdge.p1 = 0;
-		hoverEdge.p2 = 0;
-		Vector3 hoverColor;
-		float hoverAlpha = 1.0f;
+		GLSurface::CursorHitResult hitResult{};
 
 		if (editMode) {
-			cursorExists = gls.UpdateCursor(x, y, bGlobalBrushCollision, &hoverMeshName, &hoverPoint, &hoverColor, &hoverAlpha, &hoverEdge, &hoverCoord);
+			cursorExists = gls.UpdateCursor(x, y, bGlobalBrushCollision, &hitResult);
 		}
 		else {
 			cursorExists = false;
 			gls.ShowCursor(false);
 		}
+
+		lastHitResult = hitResult;
 
 		if ((transformMode || pivotMode) && !isTransforming && !isMovingPivot) {
 			if (XMoveMesh) {
@@ -12315,14 +12360,14 @@ void wxGLPanel::OnMouseMove(wxMouseEvent& event) {
 		if (os->statusBar) {
 			if (cursorExists) {
 				if (activeTool == ToolID::MaskBrush)
-					os->statusBar->SetStatusText(wxString::Format("Vertex: %d, Mask: %g", hoverPoint, hoverColor.x), 1);
+					os->statusBar->SetStatusText(wxString::Format("Vertex: %d, Mask: %g", hitResult.hoverPoint, hitResult.hoverColor.x), 1);
 				else if (activeTool == ToolID::WeightBrush)
-					os->statusBar->SetStatusText(wxString::Format("Vertex: %d, Weight: %g", hoverPoint, hoverColor.y), 1);
+					os->statusBar->SetStatusText(wxString::Format("Vertex: %d, Weight: %g", hitResult.hoverPoint, hitResult.hoverColor.y), 1);
 				else if (activeTool == ToolID::ColorBrush || activeTool == ToolID::AlphaBrush)
-					os->statusBar->SetStatusText(wxString::Format("Vertex: %d, Color: %g, %g, %g, Alpha: %g", hoverPoint, hoverColor.x, hoverColor.y, hoverColor.z, hoverAlpha), 1);
+					os->statusBar->SetStatusText(wxString::Format("Vertex: %d, Color: %g, %g, %g, Alpha: %g", hitResult.hoverPoint, hitResult.hoverColor.x, hitResult.hoverColor.y, hitResult.hoverColor.z, hitResult.hoverAlpha), 1);
 				else {
-					Vector3 hoverCoordNif = mesh::VecToNifCoords(hoverCoord);
-					os->statusBar->SetStatusText(wxString::Format("Vertex: %d, X: %.5f Y: %.5f Z: %.5f", hoverPoint, hoverCoordNif.x, hoverCoordNif.y, hoverCoordNif.z), 1);
+					Vector3 hoverCoordNif = mesh::VecToNifCoords(hitResult.hoverMeshCoord);
+					os->statusBar->SetStatusText(wxString::Format("Vertex: %d, X: %.5f Y: %.5f Z: %.5f", hitResult.hoverPoint, hoverCoordNif.x, hoverCoordNif.y, hoverCoordNif.z), 1);
 				}
 			}
 			else {

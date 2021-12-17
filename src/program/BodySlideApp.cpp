@@ -62,6 +62,7 @@ wxBEGIN_EVENT_TABLE(BodySlideFrame, wxFrame)
 
 	EVT_BUTTON(XRCID("btnDeleteProject"), BodySlideFrame::OnDeleteProject)
 	EVT_BUTTON(XRCID("btnDeletePreset"), BodySlideFrame::OnDeletePreset)
+	EVT_CHECKBOX(XRCID("cbIsOutfitChoice"), BodySlideFrame::OnOutfitChoiceSelect)
 
 	EVT_BUTTON(XRCID("btnPreview"), BodySlideFrame::OnPreview)
 	EVT_BUTTON(XRCID("btnHighToLow"), BodySlideFrame::OnHighToLow)
@@ -81,6 +82,7 @@ wxBEGIN_EVENT_TABLE(BodySlideFrame, wxFrame)
 	EVT_MENU(XRCID("menuChooseGroups"), BodySlideFrame::OnChooseGroups)	
 	EVT_MENU(XRCID("menuRefreshGroups"), BodySlideFrame::OnRefreshGroups)
 	EVT_MENU(XRCID("menuRefreshOutfits"), BodySlideFrame::OnRefreshOutfits)
+	EVT_MENU(XRCID("menuRegexOutfits"), BodySlideFrame::OnRegexOutfits)
 	EVT_MENU(XRCID("menuSaveGroups"), BodySlideFrame::OnSaveGroups)
 	
 	EVT_MOVE_END(BodySlideFrame::OnMoveWindow)
@@ -379,6 +381,97 @@ void BodySlideApp::LoadData() {
 	sliderView->Layout();
 }
 
+void BodySlideApp::CharHook(wxKeyEvent& event) {
+	wxWindow* w = (wxWindow*)event.GetEventObject();
+	if (!w) {
+		event.Skip();
+		return;
+	}
+
+	wxString nm = w->GetName();
+
+	if (event.ControlDown()) {
+		switch (event.GetKeyCode()) {
+		case (int)'A':
+			if (sliderView) {
+				if (sliderView->outfitsearch)
+					sliderView->outfitsearch->Clear();
+
+				if (sliderView->search)
+					sliderView->search->Clear();
+			}
+			return;
+
+		case wxKeyCode::WXK_PAGEUP:
+			if (sliderView->outfitChoice) {
+				int curSel = sliderView->outfitChoice->GetSelection();
+				if (curSel > 0) {
+					sliderView->outfitChoice->SetSelection(curSel - 1);
+					ActivateOutfit(sliderView->outfitChoice->GetStringSelection().ToUTF8().data());
+				}
+			}
+			return;
+
+		case wxKeyCode::WXK_PAGEDOWN:
+			if (sliderView->outfitChoice) {
+				int curSel = sliderView->outfitChoice->GetSelection();
+				int curCount = sliderView->outfitChoice->GetCount();
+				if (curCount > 0 && curSel < curCount - 1) {
+					sliderView->outfitChoice->Select(curSel + 1);
+					ActivateOutfit(sliderView->outfitChoice->GetStringSelection().ToUTF8().data());
+				}
+			}
+			return;
+		}
+	}
+	else {
+		switch (event.GetKeyCode()) {
+		case wxKeyCode::WXK_F5:
+			if (nm == "outfitChoice")
+				RefreshOutfitList();
+			return;
+
+		case wxKeyCode::WXK_PAGEUP:
+			if (sliderView->presetChoice) {
+				int curSel = sliderView->presetChoice->GetSelection();
+				if (curSel > 0) {
+					sliderView->presetChoice->SetSelection(curSel - 1);
+					ActivatePreset(sliderView->presetChoice->GetStringSelection().ToUTF8().data());
+				}
+			}
+			return;
+
+		case wxKeyCode::WXK_PAGEDOWN:
+			if (sliderView->presetChoice) {
+				int curSel = sliderView->presetChoice->GetSelection();
+				int curCount = sliderView->presetChoice->GetCount();
+				if (curCount > 0 && curSel < curCount - 1) {
+					sliderView->presetChoice->Select(curSel + 1);
+					ActivatePreset(sliderView->presetChoice->GetStringSelection().ToUTF8().data());
+				}
+			}
+			return;
+		}
+	}
+
+#ifdef _WINDOWS
+	std::string stupidkeys = "0123456789-";
+	bool stupidHack = false;
+	if (event.GetKeyCode() < 256 && stupidkeys.find(event.GetKeyCode()) != std::string::npos)
+		stupidHack = true;
+
+	if (stupidHack && nm.EndsWith("|readout")) {
+		wxTextCtrl* e = (wxTextCtrl*)w;
+		HWND hwndEdit = e->GetHandle();
+		::SendMessage(hwndEdit, WM_CHAR, event.GetKeyCode(), event.GetRawKeyFlags());
+	}
+	else
+#endif
+	{
+		event.Skip();
+	}
+}
+
 int BodySlideApp::CreateSetSliders(const std::string& outfit) {
 	wxLogMessage("Creating sliders...");
 	dataSets.Clear();
@@ -524,6 +617,8 @@ void BodySlideApp::ActivatePreset(const std::string &presetName, const bool upda
 		sliderView->SetSliderPosition(sliderBig->name.c_str(), sliderBig->value, SLIDER_HI);
 	}
 
+	sliderView->SetPresetChanged(false);
+
 	if (preview && updatePreview)
 		zapChanged ? RebuildPreviewMeshes() : UpdatePreview();
 }
@@ -534,9 +629,8 @@ void BodySlideApp::DeleteOutfit(const std::string& outfitName) {
 		return;
 
 	int select = wxNOT_FOUND;
-	auto outfitChoice = (wxChoice*)sliderView->FindWindowByName("outfitChoice", sliderView);
-	if (outfitChoice)
-		select = outfitChoice->GetSelection();
+	if (sliderView->outfitChoice)
+		select = sliderView->outfitChoice->GetSelection();
 
 	wxLogMessage("Loading project file '%s'...", outfit->second);
 
@@ -549,14 +643,14 @@ void BodySlideApp::DeleteOutfit(const std::string& outfitName) {
 			if (sliderDoc.Save()) {
 				RefreshOutfitList();
 
-				if (outfitChoice) {
-					int count = outfitChoice->GetCount();
+				if (sliderView->outfitChoice) {
+					int count = sliderView->outfitChoice->GetCount();
 					if (count > select)
-						outfitChoice->Select(select);
+						sliderView->outfitChoice->Select(select);
 					else if (count > select - 1)
-						outfitChoice->Select(select - 1);
+						sliderView->outfitChoice->Select(select - 1);
 
-					ActivateOutfit(outfitChoice->GetStringSelection().ToUTF8().data());
+					ActivateOutfit(sliderView->outfitChoice->GetStringSelection().ToUTF8().data());
 				}
 			}
 			else
@@ -575,23 +669,22 @@ void BodySlideApp::DeletePreset(const std::string& presetName) {
 		return;
 
 	int select = wxNOT_FOUND;
-	auto presetChoice = (wxChoice*)sliderView->FindWindowByName("presetChoice", sliderView);
-	if (presetChoice)
-		select = presetChoice->GetSelection();
+	if (sliderView->presetChoice)
+		select = sliderView->presetChoice->GetSelection();
 
 	wxLogMessage("Deleting preset '%s'...", presetName);
 	if (!sliderManager.DeletePreset(outputFile, presetName)) {
 		LoadPresets("");
 		PopulatePresetList(presetName);
 
-		if (presetChoice) {
-			int count = presetChoice->GetCount();
+		if (sliderView->presetChoice) {
+			int count = sliderView->presetChoice->GetCount();
 			if (count > select)
-				presetChoice->Select(select);
+				sliderView->presetChoice->Select(select);
 			else if (count > select - 1)
-				presetChoice->Select(select - 1);
+				sliderView->presetChoice->Select(select - 1);
 
-			ActivatePreset(presetChoice->GetStringSelection().ToUTF8().data());
+			ActivatePreset(sliderView->presetChoice->GetStringSelection().ToUTF8().data());
 		}
 	}
 	else
@@ -713,6 +806,83 @@ void BodySlideApp::DisplayActiveSet() {
 			iter++;
 		}
 	}
+	UpdateConflictManager();
+}
+
+void BodySlideApp::UpdateConflictManager() {
+	// Populate Conflict UI
+	auto conflictCheckBox = (wxCheckBox*)sliderView->FindWindowByName("cbIsOutfitChoice");
+	auto conflictLabel = (wxStaticText*)sliderView->FindWindowByName("conflictLabel");
+	auto conflictInfo = (wxStaticText*)sliderView->FindWindowByName("conflictInfo");
+
+	auto outputFilePath = activeSet.GetOutputFilePath();
+	auto& col = outFileCount[outputFilePath];
+
+	bool isOutputChoice = true;
+	std::string textColourName = "WHITE";
+
+	if (1 < col.size()) {
+		std::string buildSelFileName = Config["AppDir"] + PathSepStr + "BuildSelection.xml";
+
+		BuildSelectionFile buildSelFile(buildSelFileName);
+		if (buildSelFile.GetError())
+			buildSelFile.New(buildSelFileName);
+
+		BuildSelection buildSelection;
+		buildSelFile.Get(buildSelection);
+
+		std::string outputChoice = buildSelection.GetOutputChoice(outputFilePath);
+		isOutputChoice = outputChoice == activeSet.GetName();
+		textColourName = isOutputChoice ? "CYAN" : "RED";
+	}
+
+	conflictCheckBox->SetValue(isOutputChoice);
+	conflictCheckBox->Show();
+
+	if (activeSet.GenWeights()) {
+		std::regex prefix(".*[/\\\\]");
+		std::string filePart = std::regex_replace(outputFilePath, prefix, "");
+		conflictLabel->SetLabel(outputFilePath + "_0.nif (and _1.nif)");
+	}
+	else
+		conflictLabel->SetLabel(outputFilePath + ".nif");
+
+	conflictLabel->SetForegroundColour(wxTheColourDatabase->Find(textColourName));
+	conflictLabel->Show();
+	if (1 < col.size()) {
+		conflictInfo->Show();
+	}
+	else {
+		conflictInfo->Hide();
+	}
+}
+
+void BodySlideApp::SetDefaultBuildSelection() {
+	auto outputFilePath = activeSet.GetOutputFilePath();
+	std::string buildSelFileName = Config["AppDir"] + PathSepStr + "BuildSelection.xml";
+
+	BuildSelectionFile buildSelFile(buildSelFileName);
+	if (buildSelFile.GetError())
+		buildSelFile.New(buildSelFileName);
+
+	BuildSelection buildSelection;
+	buildSelFile.Get(buildSelection);
+
+	std::string choiceName = activeSet.GetName();
+	bool willSet = 0 != choiceName.compare(buildSelection.GetOutputChoice(outputFilePath));
+	if (willSet) {
+		buildSelection.SetOutputChoice(outputFilePath, activeSet.GetName());
+		buildSelFile.Update(buildSelection);
+	}
+	else {
+		buildSelection.SetOutputChoice(outputFilePath, "");
+		buildSelFile.Remove(outputFilePath);
+	}
+
+	buildSelFile.Save();
+
+	UpdateConflictManager();
+	sliderView->Refresh();
 }
 
 void BodySlideApp::EditProject(const std::string& projectName) {
@@ -721,9 +891,8 @@ void BodySlideApp::EditProject(const std::string& projectName) {
 		return;
 
 	int select = wxNOT_FOUND;
-	auto outfitChoice = (wxChoice*)sliderView->FindWindowByName("outfitChoice", sliderView);
-	if (outfitChoice)
-		select = outfitChoice->GetSelection();
+	if (sliderView->outfitChoice)
+		select = sliderView->outfitChoice->GetSelection();
 
 	wxLogMessage("Launching Outfit Studio with project file '%s' and project '%s'...", project->second, project->first);
 	LaunchOutfitStudio(wxString::Format("-proj \"%s\" \"%s\"", wxString::FromUTF8(project->first), wxString::FromUTF8(project->second)));
@@ -885,6 +1054,8 @@ void BodySlideApp::CopySliderValues(bool toHigh) {
 			}
 		}
 	}
+
+	sliderView->SetPresetChanged();
 
 	if (preview)
 		UpdatePreview();
@@ -1176,6 +1347,7 @@ bool BodySlideApp::SetDefaultConfig() {
 	BodySlideConfig.SetDefaultValue("SelectedOutfit", "");
 	BodySlideConfig.SetDefaultValue("SelectedPreset", "");
 	BodySlideConfig.SetDefaultBoolValue("BuildMorphs", false);
+	BodySlideConfig.SetDefaultBoolValue("RegexFilterOutfits", false);
 	Config.SetDefaultValue("Input/SliderMinimum", 0);
 	Config.SetDefaultValue("Input/SliderMaximum", 100);
 	Config.SetDefaultBoolValue("Input/LeftMousePan", false);
@@ -1602,6 +1774,13 @@ void BodySlideApp::ApplyOutfitFilter() {
 	static wxString lastGrps = "";
 	static std::set<std::string> grouplist;
 
+	bool regexFilterOutfits = false;
+	auto menuOutfitSrchContext = sliderView->outfitsearch->GetMenu();
+	if (menuOutfitSrchContext) {
+		auto menuRegexOutfits = menuOutfitSrchContext->FindItem(XRCID("menuRegexOutfits"));
+		if (menuRegexOutfits)
+			regexFilterOutfits = menuRegexOutfits->IsChecked();
+	}
 
 	wxString grpSrch = sliderView->search->GetValue();
 	std::string outfitSrch{sliderView->outfitsearch->GetValue()};
@@ -1653,10 +1832,24 @@ void BodySlideApp::ApplyOutfitFilter() {
 		wxString searchStr = wxString::FromUTF8(outfitSrch);
 		searchStr.MakeLower();
 
-		for (auto &filterEntry : workFilterList) {
-			wxString entryStr = wxString::FromUTF8(filterEntry);
-			if (entryStr.Lower().Contains(searchStr))
-				filteredOutfits.push_back(entryStr.ToUTF8().data());
+		if (regexFilterOutfits) {
+			std::regex re;
+
+			for (auto& filterEntry : workFilterList) {
+				try {
+					re.assign(outfitSrch, std::regex::icase);
+					if (std::regex_search(filterEntry, re))
+						filteredOutfits.push_back(filterEntry);
+				}
+				catch (std::regex_error&) {}
+			}
+		}
+		else {
+			for (auto& filterEntry : workFilterList) {
+				wxString entryStr = wxString::FromUTF8(filterEntry);
+				if (entryStr.Lower().Contains(searchStr))
+					filteredOutfits.push_back(entryStr.ToUTF8().data());
+			}
 		}
 	}
 
@@ -2572,6 +2765,10 @@ BodySlideFrame::BodySlideFrame(BodySlideApp* a, const wxSize &size) : delayLoad(
 		return;
 	}
 
+	outfitChoice = (wxChoice*)FindWindowByName("outfitChoice", this);
+	presetChoice = (wxChoice*)FindWindowByName("presetChoice", this);
+	btnSavePreset = (wxButton*)FindWindowByName("btnSavePreset", this);
+
 	xrc->Load(wxString::FromUTF8(Config["AppDir"]) + "/res/xrc/BatchBuild.xrc");
 	xrc->Load(wxString::FromUTF8(Config["AppDir"]) + "/res/xrc/Settings.xrc");
 	xrc->Load(wxString::FromUTF8(Config["AppDir"]) + "/res/xrc/About.xrc");
@@ -2581,8 +2778,17 @@ BodySlideFrame::BodySlideFrame(BodySlideApp* a, const wxSize &size) : delayLoad(
 	SetSize(size);
 
 	batchBuildList = nullptr;
-	wxMenu* srchMenu = xrc->LoadMenu("menuGroupContext");
-	wxMenu* outfitsrchMenu = xrc->LoadMenu("menuOutfitSrchContext");
+	auto srchMenu = xrc->LoadMenu("menuGroupContext");
+	auto outfitsrchMenu = xrc->LoadMenu("menuOutfitSrchContext");
+
+	if (outfitsrchMenu) {
+		auto menuRegexOutfits = outfitsrchMenu->FindItem(XRCID("menuRegexOutfits"));
+		if (menuRegexOutfits) {
+			bool regexFilterOutfits = BodySlideConfig.GetBoolValue("RegexFilterOutfits");
+			menuRegexOutfits->Check(regexFilterOutfits);
+		}
+	}
+	fileCollisionMenu = xrc->LoadMenu("menuFileCollision");
 
 	search = new wxSearchCtrl(this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_PROCESS_ENTER);
 	search->ShowSearchButton(true);
@@ -2597,6 +2803,14 @@ BodySlideFrame::BodySlideFrame(BodySlideApp* a, const wxSize &size) : delayLoad(
 	outfitsearch->SetDescriptiveText(_("Outfit Filter"));
 	outfitsearch->SetToolTip(_("Filter by outfit"));
 	outfitsearch->SetMenu(outfitsrchMenu);
+
+	auto conflictLabel = (wxStaticText*)FindWindowByName("conflictLabel", this);
+	if (conflictLabel)
+		conflictLabel->Bind(wxEVT_RIGHT_DOWN, &BodySlideFrame::OnConflictPopup, this);
+
+	auto conflictInfo = (wxStaticText*)FindWindowByName("conflictInfo", this);
+	if (conflictInfo)
+		conflictInfo->Bind(wxEVT_RIGHT_DOWN, &BodySlideFrame::OnConflictPopup, this);
 
 	xrc->AttachUnknownControl("searchHolder", search, this);
 	xrc->AttachUnknownControl("outfitsearchHolder", outfitsearch, this);
@@ -2641,6 +2855,17 @@ BodySlideFrame::BodySlideFrame(BodySlideApp* a, const wxSize &size) : delayLoad(
 			break;
 		}
 	}
+
+	// Set up accelerator entries
+	wxAcceleratorEntry entries[5];
+	entries[0].Set(wxACCEL_CTRL, (int)'O', XRCID("btnEditProject"));
+	entries[1].Set(wxACCEL_CTRL, (int)'S', XRCID("btnSavePreset"));
+	entries[2].Set(wxACCEL_CTRL | wxACCEL_ALT, (int)'S', XRCID("btnSavePresetAs"));
+	entries[3].Set(wxACCEL_CTRL, (int)'G', XRCID("btnGroupManager"));
+	entries[4].Set(wxACCEL_CTRL, (int)'P', XRCID("btnPreview"));
+
+	wxAcceleratorTable accel(5, entries);
+	SetAcceleratorTable(accel);
 }
 
 void BodySlideFrame::OnLinkClicked(wxHtmlLinkEvent& link) {
@@ -2809,13 +3034,11 @@ void BodySlideFrame::AddSliderGUI(const std::string& name, const std::string& di
 }
 
 void BodySlideFrame::ClearPresetList() {
-	wxChoice* presetChoice = (wxChoice*)FindWindowByName("presetChoice", this);
 	if (presetChoice)
 		presetChoice->Clear();
 }
 
 void  BodySlideFrame::ClearOutfitList() {
-	wxChoice* outfitChoice = (wxChoice*)FindWindowByName("outfitChoice", this);
 	if (outfitChoice)
 		outfitChoice->Clear();
 }
@@ -2834,8 +3057,12 @@ void BodySlideFrame::ClearSliderGUI() {
 	rowCount = 0;
 }
 
+void BodySlideFrame::SetPresetChanged(bool changed) {
+	if (btnSavePreset)
+		btnSavePreset->Enable(changed);
+}
+
 void BodySlideFrame::PopulateOutfitList(const wxArrayString& items, const wxString& selectItem) {
-	wxChoice* outfitChoice = (wxChoice*)FindWindowByName("outfitChoice", this);
 	if (!outfitChoice)
 		return;
 
@@ -2855,7 +3082,6 @@ void BodySlideFrame::PopulateOutfitList(const wxArrayString& items, const wxStri
 }
 
 void BodySlideFrame::PopulatePresetList(const wxArrayString& items, const wxString& selectItem) {
-	wxChoice* presetChoice = (wxChoice*)FindWindowByName("presetChoice", this);
 	if (!presetChoice)
 		return;
 
@@ -2903,6 +3129,13 @@ void BodySlideFrame::OnClose(wxCloseEvent& WXUNUSED(event)) {
 	auto cbForceBodyNormals = XRCCTRL(*this, "cbForceBodyNormals", wxCheckBox);
 	if (cbForceBodyNormals)
 		BodySlideConfig.SetBoolValue("ForceBodyNormals", cbForceBodyNormals->GetValue());
+
+	auto menuOutfitSrchContext = outfitsearch->GetMenu();
+	if (menuOutfitSrchContext) {
+		auto menuRegexOutfits = menuOutfitSrchContext->FindItem(XRCID("menuRegexOutfits"));
+		if (menuRegexOutfits)
+			BodySlideConfig.SetBoolValue("RegexFilterOutfits", menuRegexOutfits->IsChecked());
+	}
 
 	int ret = BodySlideConfig.SaveConfig(Config["AppDir"] + "/BodySlide.xml", "BodySlideConfig");
 	if (ret)
@@ -2967,6 +3200,7 @@ void BodySlideFrame::OnSliderChange(wxScrollEvent& event) {
 	else
 		sd->sliderReadoutHi->ChangeValue(wxString::Format("%d%%", event.GetPosition()));
 
+	SetPresetChanged();
 	app->UpdatePreview();
 }
 
@@ -2995,12 +3229,14 @@ void BodySlideFrame::OnSliderReadoutChange(wxCommandEvent& event) {
 
 	w->ChangeValue(wxString::Format("%0.0f%%", v));
 	app->SetSliderValue(name, isLo, (float)v / 100.0f);
+	app->SetSliderChanged(name, isLo);
 
 	if (isLo)
 		sd->sliderLo->SetValue(v);
 	else
 		sd->sliderHi->SetValue(v);
 
+	SetPresetChanged();
 	app->UpdatePreview();
 }
 
@@ -3110,6 +3346,8 @@ void BodySlideFrame::OnZapCheckChanged(wxCommandEvent& event) {
 		}
 	}
 
+	SetPresetChanged();
+
 	wxBeginBusyCursor();
 	if (app->IsUVSlider(sn))
 		app->UpdatePreview();
@@ -3211,6 +3449,10 @@ void BodySlideFrame::OnRefreshOutfits(wxCommandEvent& WXUNUSED(event)) {
 	app->ActivateOutfit(outfitName);
 }
 
+void BodySlideFrame::OnRegexOutfits(wxCommandEvent& event) {
+	OnRefreshOutfits(event);
+}
+
 void BodySlideFrame::OnChooseOutfit(wxCommandEvent& event) {
 	std::string sstr{event.GetString().ToUTF8()};
 	app->ActivateOutfit(sstr);
@@ -3240,6 +3482,9 @@ void BodySlideFrame::OnDeletePreset(wxCommandEvent& WXUNUSED(event)) {
 }
 
 void BodySlideFrame::OnSavePreset(wxCommandEvent& WXUNUSED(event)) {
+	if (!btnSavePreset->IsEnabled())
+		return;
+
 	if (OutfitIsEmpty())
 		return;
 
@@ -3253,6 +3498,7 @@ void BodySlideFrame::OnSavePreset(wxCommandEvent& WXUNUSED(event)) {
 		wxMessageBox(wxString::Format(_("Failed to save preset (%d)!"), error), _("Error"));
 	}
 
+	SetPresetChanged(false);
 	app->LoadPresets("");
 	app->PopulatePresetList(presetName);
 }
@@ -3280,6 +3526,7 @@ void BodySlideFrame::OnSavePresetAs(wxCommandEvent& WXUNUSED(event)) {
 		wxMessageBox(wxString::Format(_("Failed to save preset as '%s' (%d)!"), fname, error), "Error");
 	}
 
+	SetPresetChanged(false);
 	app->LoadPresets("");
 	app->PopulatePresetList(presetName);
 	BodySlideConfig.SetValue("SelectedPreset", presetName);
@@ -3292,6 +3539,22 @@ void BodySlideFrame::OnGroupManager(wxCommandEvent& WXUNUSED(event)) {
 	GroupManager gm(this, outfits);
 	gm.ShowModal();
 	app->LoadPresets("");
+}
+
+void BodySlideFrame::OnConflictPopup(wxMouseEvent& WXUNUSED(event)) {
+	std::vector<std::string> conflictingOutfits = app->GetConflictingOutfits();
+	std::string currentOutfitName = BodySlideConfig["SelectedOutfit"];
+	int id = fileCollisionMenu->GetMenuItemCount();
+	while (id--) fileCollisionMenu->Delete(id);
+	for (id = 0; id < conflictingOutfits.size(); id++) fileCollisionMenu->Append(id, conflictingOutfits[id], "", wxITEM_NORMAL);
+	id = GetPopupMenuSelectionFromUser(*fileCollisionMenu, wxDefaultPosition);
+	if (0 > id) return;
+	std::string selectedOutfitName = conflictingOutfits[id];
+	if (selectedOutfitName != currentOutfitName) app->ActivateOutfit(selectedOutfitName);
+}
+
+void BodySlideFrame::OnOutfitChoiceSelect(wxCommandEvent& WXUNUSED(event)) {
+	app->SetDefaultBuildSelection();
 }
 
 void BodySlideFrame::OnHighToLow(wxCommandEvent& WXUNUSED(event)) {

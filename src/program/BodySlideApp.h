@@ -126,39 +126,7 @@ public:
 	void GetArchiveFiles(std::vector<std::string>& outList);
 
 	void LoadData();
-	void CharHook(wxKeyEvent& event) {
-		wxWindow* w = (wxWindow*)event.GetEventObject();
-		if (!w) {
-			event.Skip();
-			return;
-		}
-
-		wxString nm = w->GetName();
-		if (event.GetKeyCode() == wxKeyCode::WXK_F5) {
-			if (nm == "outfitChoice") {
-				RefreshOutfitList();
-			}
-			event.Skip();
-			return;
-		}
-
-#ifdef _WINDOWS
-		std::string stupidkeys = "0123456789-";
-		bool stupidHack = false;
-		if (event.GetKeyCode() < 256 && stupidkeys.find(event.GetKeyCode()) != std::string::npos)
-			stupidHack = true;
-
-		if (stupidHack && nm.EndsWith("|readout")) {
-			wxTextCtrl* e = (wxTextCtrl*)w;
-			HWND hwndEdit = e->GetHandle();
-			::SendMessage(hwndEdit, WM_CHAR, event.GetKeyCode(), event.GetRawKeyFlags());
-		}
-		else
-#endif
-		{
-			event.Skip();
-		}
-	}
+	void CharHook(wxKeyEvent& event);
 
 	void LoadAllCategories();
 
@@ -175,6 +143,8 @@ public:
 	void PopulatePresetList(const std::string& select);
 	void PopulateOutfitList(const std::string& select);
 	void DisplayActiveSet();
+	void UpdateConflictManager();
+	void SetDefaultBuildSelection();
 
 	int LoadSliderSets();
 	void RefreshOutfitList();
@@ -183,6 +153,10 @@ public:
 
 	void ActivateOutfit(const std::string& outfitName);
 	void ActivatePreset(const std::string& presetName, const bool updatePreview = true);
+
+	std::vector<std::string> GetConflictingOutfits() {
+		return outFileCount.find(activeSet.GetOutputFilePath())->second;
+	}
 
 	void DeleteOutfit(const std::string& outfitName);
 	void DeletePreset(const std::string& presetName);
@@ -262,9 +236,14 @@ public:
 	std::unordered_map<std::string, SliderDisplay*> sliderDisplays;
 
 	wxTimer delayLoad;
+
+	wxChoice* outfitChoice = nullptr;
+	wxChoice* presetChoice = nullptr;
+	wxButton* btnSavePreset = nullptr;
 	wxSearchCtrl* search = nullptr;
 	wxSearchCtrl* outfitsearch = nullptr;
 	wxCheckListBox* batchBuildList = nullptr;
+	wxMenu* fileCollisionMenu = nullptr;
 
 	BodySlideFrame(BodySlideApp* app, const wxSize& size);
 	~BodySlideFrame() {
@@ -285,6 +264,7 @@ public:
 	void ClearPresetList();
 	void ClearOutfitList();
 	void ClearSliderGUI();
+	void SetPresetChanged(bool changed = true);
 
 	void PopulateOutfitList(const wxArrayString& items, const wxString& selectItem);
 	void PopulatePresetList(const wxArrayString& items, const wxString& selectItem);
@@ -321,6 +301,7 @@ private:
 	void OnRefreshGroups(wxCommandEvent& event);
 	void OnSaveGroups(wxCommandEvent& event);
 	void OnRefreshOutfits(wxCommandEvent& event);
+	void OnRegexOutfits(wxCommandEvent& event);
 
 	void OnChooseOutfit(wxCommandEvent& event);
 	void OnChoosePreset(wxCommandEvent& event);
@@ -331,6 +312,8 @@ private:
 	void OnSavePreset(wxCommandEvent& event);
 	void OnSavePresetAs(wxCommandEvent& event);
 	void OnGroupManager(wxCommandEvent& event);
+	void OnConflictPopup(wxMouseEvent& event);
+	void OnOutfitChoiceSelect(wxCommandEvent& event);
 
 	void OnPreview(wxCommandEvent& event);
 	void OnHighToLow(wxCommandEvent& event);
@@ -350,7 +333,6 @@ private:
 	void OnEditProject(wxCommandEvent& event);
 
 	bool OutfitIsEmpty() {
-		wxChoice* outfitChoice = (wxChoice*)FindWindowByName("outfitChoice");
 		if (outfitChoice && !outfitChoice->GetStringSelection().empty())
 			return false;
 
