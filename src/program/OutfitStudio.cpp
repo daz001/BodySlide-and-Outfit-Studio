@@ -3610,7 +3610,9 @@ void OutfitStudioFrame::OnConvertBodyReference(wxCommandEvent& WXUNUSED(event)) 
 	wxDialog dlg;
 	int result = wxID_CANCEL;
 	if (wxXmlResource::Get()->LoadObject((wxObject*)&dlg, this, "dlgConvertBodyRef", "wxDialog")) {
-
+		wxChoice* choice = XRCCTRL(dlg, "npConvRefChoice", wxChoice);
+		choice->Append("None");
+		
 		LoadDialogChoice(dlg, "npConvRefChoice");
 		LoadDialogChoice(dlg, "npNewRefChoice");
 		LoadDialogText(dlg, "npRemoveText");
@@ -3712,32 +3714,39 @@ void OutfitStudioFrame::OnConvertBodyReference(wxCommandEvent& WXUNUSED(event)) 
 	project->DeleteShape(project->GetBaseShape());
 	auto remainingOutfitShapes = project->GetWorkNif()->GetShapes(); // get outfit shapes
 
-	UpdateProgress(5, _("Loading conversion reference..."));
-	StartSubProgress(5, 10);
-	if (AlertProgressError(LoadReferenceTemplate(conversionRefTemplate, keepZapSliders), "Load Error", "Failed to load conversion reference"))
-		return;
-	EndProgress();
+	if(conversionRefTemplate != "None")
+	{
+		UpdateProgress(5, _("Loading conversion reference..."));
+		StartSubProgress(5, 10);
+		if (AlertProgressError(LoadReferenceTemplate(conversionRefTemplate, keepZapSliders), "Load Error", "Failed to load conversion reference"))
+			return;
+		EndProgress();
+		
+		StartSubProgress(10, 20);
+		CreateSetSliders();
+		RefreshGUIFromProj();
+
+		UpdateProgress(20, _("Conforming outfit parts..."));
+		StartSubProgress(20, 35);
+
+		// We shouldn't ever need to skip using default for this case as a correct conversion reference should always conform accurately
+		if (AlertProgressError(ConformShapes(remainingOutfitShapes, true), "Conform Error", "Failed to conform shapes"))
+			return;
+		
+		UpdateProgress(35, _("Updating conversion Slider..."));
+		SetSliderValue(project->activeSet.size() - 1, 100);
+		ApplySliders();
+		
+		UpdateProgress(40, _("Setting the base shape and removing the conversion reference"));
+		SetBaseShape();
+		project->DeleteShape(project->GetBaseShape());
+		DeleteSliders(true);
+		project->GetWorkAnim()->Clear();
+	}
+	else {
+		UpdateProgress(5, _("Skipping conversion reference..."));
+	}
 	
-	StartSubProgress(10, 20);
-	CreateSetSliders();
-	RefreshGUIFromProj();
-
-	UpdateProgress(20, _("Conforming outfit parts..."));
-	StartSubProgress(20, 35);
-
-	// We shouldn't ever need to skip using default for this case as a correct conversion reference should always conform accurately
-	if (AlertProgressError(ConformShapes(remainingOutfitShapes, true), "Conform Error", "Failed to conform shapes"))
-		return;
-	
-	UpdateProgress(35, _("Updating conversion Slider..."));
-	SetSliderValue(project->activeSet.size() - 1, 100);
-	ApplySliders();
-
-	UpdateProgress(40, _("Setting the base shape and removing the conversion reference"));
-	SetBaseShape();
-	project->DeleteShape(project->GetBaseShape());
-	DeleteSliders(true);
-	project->GetWorkAnim()->Clear();
 	RefreshGUIFromProj();
 	
 	UpdateProgress(50, _("Loading new reference..."));
