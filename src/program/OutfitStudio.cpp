@@ -3702,12 +3702,17 @@ void OutfitStudioFrame::OnConvertBodyReference(wxCommandEvent& WXUNUSED(event)) 
 	{
 		UpdateProgress(5, _("Deleting Shapes..."));
 		wxStringTokenizer tkz(deleteShapesText, wxT(","));
+		
 		while (tkz.HasMoreTokens()) {
 			wxString token = tkz.GetNextToken();
 			for(auto &shape : originalShapes) {
+				if(shape == nullptr)
+					continue;
 				auto shapeName = wxString(shape->name.get().c_str());
-				if(shapeName.Contains(token))
+				if(shapeName.Contains(token)) {
 					project->DeleteShape(shape);
+					shape = nullptr;
+				}
 			}
 		}
 	}
