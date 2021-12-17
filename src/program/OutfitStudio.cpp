@@ -3749,6 +3749,9 @@ void OutfitStudioFrame::OnConvertBodyReference(wxCommandEvent& WXUNUSED(event)) 
 	StartSubProgress(55, 65);
 	CreateSetSliders();
 	RefreshGUIFromProj();
+
+	if(AlertProgressError(project->GetBaseShape() == nullptr, "Missing Base Shape", "The loaded reference does not contain a base shape"))
+		return;
 	
 	UpdateProgress(65, _("Copying bones..."));
 	StartSubProgress(65, 85);
