@@ -3701,7 +3701,8 @@ void OutfitStudioFrame::OnConvertBodyReference(wxCommandEvent& WXUNUSED(event)) 
 		project->outfitName = project->mOutfitName.ToStdString();
 		UpdateTitle();
 	}
-	
+
+	DeleteSliders(keepZapSliders); // we need to do this first so we can clear any broken sliders
 	project->ResetTransforms();
 	
 	auto originalShapes = project->GetWorkNif()->GetShapes(); // get outfit shapes
@@ -3723,6 +3724,7 @@ void OutfitStudioFrame::OnConvertBodyReference(wxCommandEvent& WXUNUSED(event)) 
 			}
 		}
 	}
+
 	project->DeleteShape(project->GetBaseShape());
 	auto remainingOutfitShapes = project->GetWorkNif()->GetShapes(); // get outfit shapes
 
