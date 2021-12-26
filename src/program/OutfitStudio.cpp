@@ -1113,6 +1113,10 @@ OutfitStudioFrame::OutfitStudioFrame(const wxPoint& pos, const wxSize& size) {
 	bonesFilter->GetParent()->Hide();
 
 	project = new OutfitProject(this);	// Create empty project
+
+	editSmallBitmap = new wxBitmap(wxString::FromUTF8(Config["AppDir"]) + "/res/images/EditSmall.png", wxBITMAP_TYPE_ANY);
+	settingsBitmap = new wxBitmap(wxString::FromUTF8(Config["AppDir"]) + "/res/images/Settings.png", wxBITMAP_TYPE_ANY);
+	
 	CreateSetSliders();
 
 	bEditSlider = false;
@@ -2330,11 +2334,11 @@ void OutfitStudioFrame::createSliderGUI(const std::string& name, const size_t id
 
 	d->paneSz = new wxBoxSizer(wxHORIZONTAL);
 
-	d->btnSliderEdit = new wxBitmapButton(d->sliderPane, wxID_ANY, wxBitmap(wxString::FromUTF8(Config["AppDir"]) + "/res/images/EditSmall.png", wxBITMAP_TYPE_ANY), wxDefaultPosition, wxSize(22, 22), wxBU_AUTODRAW, wxDefaultValidator, sn + "|btn");
+	d->btnSliderEdit = new wxBitmapButton(d->sliderPane, wxID_ANY, *editSmallBitmap, wxDefaultPosition, wxSize(22, 22), wxBU_AUTODRAW, wxDefaultValidator, sn + "|btn");
 	d->btnSliderEdit->SetToolTip(_("Turn on edit mode for this slider."));
 	d->paneSz->Add(d->btnSliderEdit, 0, wxALIGN_CENTER_VERTICAL | wxALL);
 
-	d->btnSliderProp = new wxBitmapButton(d->sliderPane, wxID_ANY, wxBitmap(wxString::FromUTF8(Config["AppDir"]) + "/res/images/Settings.png", wxBITMAP_TYPE_ANY), wxDefaultPosition, wxSize(22, 22), wxBU_AUTODRAW, wxDefaultValidator, sn + "|btnSliderProp");
+	d->btnSliderProp = new wxBitmapButton(d->sliderPane, wxID_ANY, *settingsBitmap, wxDefaultPosition, wxSize(22, 22), wxBU_AUTODRAW, wxDefaultValidator, sn + "|btnSliderProp");
 	d->btnSliderProp->SetToolTip(_("Display and edit the active slider's properties."));
 	d->btnSliderProp->Hide();
 	d->paneSz->Add(d->btnSliderProp, 0, wxALIGN_CENTER_VERTICAL | wxALL);

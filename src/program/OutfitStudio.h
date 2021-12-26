@@ -974,6 +974,9 @@ public:
 	wxTreeItemId segmentRoot;
 	wxTreeItemId partitionRoot;
 
+	wxBitmap* editSmallBitmap;
+	wxBitmap* settingsBitmap;
+	
 	class SliderDisplay {
 	public:
 		bool hilite;
