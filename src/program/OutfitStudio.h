@@ -997,6 +997,7 @@ public:
 	};
 
 	std::map<std::string, SliderDisplay*> sliderDisplays;
+	std::queue<SliderDisplay*> sliderDisplaysPool;
 
 	void SetPendingChanges(bool pending = true);
 	bool CheckPendingChanges();
@@ -1185,7 +1186,10 @@ private:
 	std::vector<RefTemplate> refTemplates;
 
 	void createSliderGUI(const std::string& name, const size_t id, wxScrolledWindow* wnd, wxSizer* rootSz);
-
+	void AssignSliderDisplayGUI(const std::string& name, const size_t id, wxScrolledWindow* wnd, wxSizer* rootSz);
+	void ClearSliderDisplayGUI();
+	void ClearSliderDisplayGUI(SliderDisplay* sd);
+	
 	void ScrollWindowIntoView(wxScrolledWindow* scrolled, wxWindow* window);
 	void HighlightSlider(const std::string& name);
 
