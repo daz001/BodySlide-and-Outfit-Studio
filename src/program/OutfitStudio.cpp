@@ -4996,11 +4996,13 @@ void OutfitStudioFrame::DoFilterSliders() {
 		if (!sd.second)
 			continue;
 
-		sd.second->sliderPane->Hide();
-
 		// Filter slider by name
 		wxString sliderStr = wxString::FromUTF8(sd.first);
-		if (sliderStr.Lower().Contains(filterStr))
+		bool show = sliderStr.Lower().Contains(filterStr);
+		bool isShown = sd.second->sliderPane->IsShown();
+		if(isShown && !show)
+			sd.second->sliderPane->Hide();
+		else if(!isShown && show)
 			sd.second->sliderPane->Show();
 	}
 
