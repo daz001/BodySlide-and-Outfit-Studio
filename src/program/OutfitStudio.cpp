@@ -2398,12 +2398,12 @@ void OutfitStudioFrame::createSliderGUI(const std::string& name, const size_t id
 
 	d->sliderPane->SetSizer(d->paneSz);
 	d->sliderPane->Layout();
+	d->sliderPane->Show();
+	
 	d->paneSz->Fit(d->sliderPane);
-
 	d->hilite = false;
 
 	sliderDisplaysPool.push(d);
-	d->sliderPane->Hide();
 }
 
 void OutfitStudioFrame::AssignSliderDisplayGUI(const std::string& name, const size_t id, wxScrolledWindow* wnd, wxSizer* rootSz) {
