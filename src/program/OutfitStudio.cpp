@@ -2438,8 +2438,8 @@ void OutfitStudioFrame::AssignSliderDisplayGUI(const std::string& name, const si
 	d->btnMinus->Hide();
 	d->btnPlus->Hide();
 	
-	d->sliderPane->Show();
-	d->sliderPane->Layout();
+	//d->sliderPane->Show();
+	//d->sliderPane->Layout();
 	
 	rootSz->Add(d->sliderPane, 0, wxALL | wxEXPAND | wxFIXED_MINSIZE, 1);
 	
@@ -2451,14 +2451,14 @@ void OutfitStudioFrame::AssignSliderDisplayGUI(const std::string& name, const si
 void OutfitStudioFrame::ClearSliderDisplayGUI() {
 	for(auto sd: sliderDisplays) {
 		sliderDisplaysPool.push(sd.second);
-		sd.second->sliderPane->Hide();
+		//sd.second->sliderPane->Hide();
 		sliderScroll->GetSizer()->Detach(sd.second->sliderPane);
 	}
 	sliderDisplays.clear();
 }
 
 void OutfitStudioFrame::ClearSliderDisplayGUI(SliderDisplay* sd) {
-	sd->sliderPane->Hide();
+	//sd->sliderPane->Hide();
 	sliderScroll->GetSizer()->Detach(sd->sliderPane);
 	sliderDisplaysPool.push(sd);
 }
