@@ -78,7 +78,5 @@ wxSliderPanel::wxSliderPanel(wxWindow* parent, const wxString& name, size_t id, 
 	sizer->Add(sliderReadout, 0, wxALIGN_CENTER_VERTICAL | wxALL, 2);
 
 	SetSizer(sizer);
-	Layout();
 	sizer->Fit(this);
-	Show();
 }

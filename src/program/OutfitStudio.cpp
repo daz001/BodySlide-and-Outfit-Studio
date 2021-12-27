@@ -1118,12 +1118,10 @@ OutfitStudioFrame::OutfitStudioFrame(const wxPoint& pos, const wxSize& size) {
 	project = new OutfitProject(this);	// Create empty project
 
 	sliderScroll = XRCCTRL(*this, "sliderScroll", wxScrolledWindow);
-	wxSizer* rootSz = sliderScroll->GetSizer();
-
 	sliderScroll->DestroyChildren();
 	
-	//for(int i = 0; i < 200; ++i)
-	//	createSliderGUI("", i, sliderScroll, rootSz);
+	for(int i = 0; i < 200; ++i)
+		createSliderGUI(std::to_string(i), i, sliderScroll, sliderScroll->GetSizer());
 	
 	CreateSetSliders();
 
@@ -1169,7 +1167,6 @@ void OutfitStudioFrame::OnClose(wxCloseEvent& WXUNUSED(event)) {
 		auto sliderDisplay = sliderDisplaysPool.front();
 		sliderDisplaysPool.pop();
 		sliderDisplay->Destroy();
-		delete sliderDisplay;
 	}
 	
 	if (project) {
@@ -2344,7 +2341,7 @@ void OutfitStudioFrame::createSliderGUI(const std::string& name, const size_t id
 
 	auto sliderPanel = new wxSliderPanel(wnd, sliderName, id, *bmpEditSlider, *bmpSliderSettings);
 	sliderPanel->sliderReadout->Bind(wxEVT_TEXT, &OutfitStudioFrame::OnReadoutChange, this);
-
+	
 	sliderDisplaysPool.push(sliderPanel);
 }
 
