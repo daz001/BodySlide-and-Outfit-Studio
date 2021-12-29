@@ -1117,13 +1117,13 @@ OutfitStudioFrame::OutfitStudioFrame(const wxPoint& pos, const wxSize& size) {
 
 	project = new OutfitProject(this);	// Create empty project
 
-	sliderScroll = XRCCTRL(*this, "sliderScroll", wxScrolledWindow);
-	sliderScroll->DestroyChildren();
-	
-	for(int i = 0; i < 200; ++i)
-		createSliderGUI(std::to_string(i), i, sliderScroll, sliderScroll->GetSizer());
-	
 	CreateSetSliders();
+
+	sliderScroll->DestroyChildren();
+
+	auto rootSz = sliderScroll->GetSizer();
+	for (int i = wxID_HIGHEST + 1; i <= wxID_HIGHEST + 200; ++i)
+		createSliderGUI("", i, sliderScroll, rootSz);
 
 	bEditSlider = false;
 	activeItem = nullptr;
@@ -2387,14 +2387,18 @@ void OutfitStudioFrame::AssignSliderDisplayGUI(const std::string& name, const si
 }
 
 void OutfitStudioFrame::ClearSliderDisplayGUI() {
+	auto rootSz = sliderScroll->GetSizer();
 	for(auto sd: sliderPanels) {
 		sliderDisplaysPool.push(sd.second);
-		sliderScroll->GetSizer()->Detach(sd.second);
+		sd.second->Hide();
+		rootSz->Detach(sd.second);
 	}
 	sliderPanels.clear();
+	sliderScroll->Layout();
 }
 
 void OutfitStudioFrame::ClearSliderDisplayGUI(wxSliderPanel* sd) {
+	sd->Hide();
 	sliderScroll->GetSizer()->Detach(sd);
 	sliderDisplaysPool.push(sd);
 }
