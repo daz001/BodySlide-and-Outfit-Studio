@@ -2547,6 +2547,15 @@ void OutfitStudioFrame::UpdateActiveShape() {
 	UpdateBoneCounts();
 }
 
+void OutfitStudioFrame::UpdateVertexColors() {
+	bool enableVertexColors = menuBar->IsChecked(XRCID("btnEnableVertexColors"));
+	glView->SetColorsVisible(enableVertexColors);
+	if (enableVertexColors)
+		FillVertexColors();
+	else if (colorSettings->IsShown())
+		glView->ClearColors();
+}
+
 void OutfitStudioFrame::UpdateBoneCounts() {
 	auto totalBoneCountLabel = reinterpret_cast<wxStaticText*>(FindWindowByName("totalBoneCountLabel"));
 	totalBoneCountLabel->SetLabel(wxString::Format(_("Total Bones: %zu"), project->GetActiveBoneCount()));
@@ -4134,7 +4143,7 @@ void OutfitStudioFrame::RefreshGUIFromProj(bool render) {
 			child = outfitShapes->GetNextChild(outfitRoot, cookie);
 		}
 	}
-
+	UpdateVertexColors();
 	UpdateUndoTools();
 	glView->UpdateFloor();
 
@@ -6651,12 +6660,7 @@ void OutfitStudioFrame::OnTabButtonClick(wxCommandEvent& event) {
 
 	if (id != colorsTabButton->GetId()) 
 	{
-		bool enableVertexColors = menuBar->IsChecked(XRCID("btnEnableVertexColors"));
-		glView->SetColorsVisible(enableVertexColors);
-		if (enableVertexColors)
-			FillVertexColors();
-		else if (colorSettings->IsShown())
-			glView->ClearColors();
+		UpdateVertexColors();
 	}
 
 	if (id != boneTabButton->GetId() || id != colorsTabButton->GetId()) {
