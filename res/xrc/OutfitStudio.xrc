@@ -1662,11 +1662,6 @@
 				<help>Load a NIF file as the working outfit, replacing any current outfit objects.</help>
 			</object>
 			<object class="separator" />
-			<object class="wxMenuItem" name="fileConvBodyRef">
-				<label>Convert Body Reference...\tCtrl+Shift+R</label>
-				<help>Convert an outfits body reference to use a different reference</help>
-			</object>
-			<object class="separator" />
 			<object class="wxMenuItem" name="fileSave">
 				<label>Save Project\tCtrl+S</label>
 				<help>Save the project.</help>
@@ -2229,13 +2224,13 @@
 				<checked>1</checked>
 				<checkable>1</checkable>
 			</object>
-      <object class="wxMenuItem" name="btnEnableVertexColors">
-        <label>Enable Vertex Colors</label>
-        <help>Display vertex colors on models.</help>
-        <checked>0</checked>
-        <checkable>1</checkable>
-      </object>
-    </object>
+			<object class="wxMenuItem" name="btnEnableVertexColors">
+				<label>Enable Vertex Colors</label>
+				<help>Display vertex colors on models.</help>
+				<checked>0</checked>
+				<checkable>1</checkable>
+			</object>
+		</object>
 	</object>
 
 	<object class="wxMenu" name="menuMeshContext">
