@@ -4143,7 +4143,7 @@ void OutfitStudioFrame::RefreshGUIFromProj(bool render) {
 			child = outfitShapes->GetNextChild(outfitRoot, cookie);
 		}
 	}
-	UpdateVertexColors();
+
 	UpdateUndoTools();
 	glView->UpdateFloor();
 
@@ -5160,11 +5160,11 @@ void OutfitStudioFrame::OnBoneStateToggle(wxTreeEvent& event) {
 }
 
 void OutfitStudioFrame::RefreshGUIWeightColors() {
-	// Clear vcolors of all shapes
+	// Clear weight color of all shapes
 	for (auto &s : project->GetWorkNif()->GetShapeNames()) {
 		mesh* m = glView->GetMesh(s);
 		if (m)
-			m->ColorChannelFill(1, 0.0f);
+			m->WeightFill(0.0f);
 	}
 
 	if (!activeBone.empty()) {
@@ -5175,10 +5175,10 @@ void OutfitStudioFrame::RefreshGUIWeightColors() {
 
 				mesh* m = glView->GetMesh(s->GetShape()->name.get());
 				if (m) {
-					m->ColorChannelFill(1, 0.0f);
+					m->WeightFill(0.0f);
 					if (weights) {
 						for (auto &bw : *weights)
-							m->vcolors[bw.first].y = bw.second;
+							m->weight[bw.first] = bw.second;
 					}
 				}
 			}
@@ -5191,10 +5191,10 @@ void OutfitStudioFrame::RefreshGUIWeightColors() {
 
 			mesh* m = glView->GetMesh(baseShape->name.get());
 			if (m) {
-				m->ColorChannelFill(1, 0.0f);
+				m->WeightFill(0.0f);
 				if (weights) {
 					for (auto &bw : *weights)
-						m->vcolors[bw.first].y = bw.second;
+						m->weight[bw.first] = bw.second;
 				}
 			}
 		}
@@ -5822,15 +5822,15 @@ void OutfitStudioFrame::ShowSegment(const wxTreeItemId& item, bool updateFromMas
 		}
 
 		// Set mask
-		m->ColorFill(Vector3(0.0f, 0.0f, 0.0f));
+		m->MaskFill(0.0f);
 
 		for (size_t i = 0; i < triSParts.size(); ++i) {
 			if (triSParts[i] < 0 || !selPartIDs[triSParts[i]])
 				continue;
 
-			m->vcolors[tris[i].p1].x = 1.0f;
-			m->vcolors[tris[i].p2].x = 1.0f;
-			m->vcolors[tris[i].p3].x = 1.0f;
+			m->mask[tris[i].p1] = 1.0f;
+			m->mask[tris[i].p2] = 1.0f;
+			m->mask[tris[i].p3] = 1.0f;
 		}
 	}
 
@@ -6174,7 +6174,7 @@ void OutfitStudioFrame::ShowPartition(const wxTreeItemId& item, bool updateFromM
 		}
 
 		// Set mask
-		m->ColorFill(Vector3(0.0f, 0.0f, 0.0f));
+		m->MaskFill(0.0f);
 
 		if (partitionData) {
 			for (size_t i = 0; i < allTris.size(); ++i) {
@@ -6182,9 +6182,9 @@ void OutfitStudioFrame::ShowPartition(const wxTreeItemId& item, bool updateFromM
 					continue;
 
 				const Triangle &t = allTris[i];
-				m->vcolors[t.p1].x = 1.0f;
-				m->vcolors[t.p2].x = 1.0f;
-				m->vcolors[t.p3].x = 1.0f;
+				m->mask[t.p1] = 1.0f;
+				m->mask[t.p2] = 1.0f;
+				m->mask[t.p3] = 1.0f;
 			}
 		}
 	}
@@ -6580,7 +6580,7 @@ void OutfitStudioFrame::OnTabButtonClick(wxCommandEvent& event) {
 		segmentReset->Show(false);
 
 		if (glView->GetSegmentMode())
-			glView->ClearActiveColors();
+			glView->ClearActiveMask();
 
 		glView->SetSegmentMode(false);
 		glView->SetMaskVisible();
@@ -6610,7 +6610,7 @@ void OutfitStudioFrame::OnTabButtonClick(wxCommandEvent& event) {
 		partitionReset->Show(false);
 
 		if (glView->GetSegmentMode())
-			glView->ClearActiveColors();
+			glView->ClearActiveMask();
 
 		glView->SetSegmentMode(false);
 		glView->SetMaskVisible();
@@ -6658,8 +6658,7 @@ void OutfitStudioFrame::OnTabButtonClick(wxCommandEvent& event) {
 		glView->SetWeightVisible(false);
 	}
 
-	if (id != colorsTabButton->GetId()) 
-	{
+	if (id != colorsTabButton->GetId()) {
 		UpdateVertexColors();
 	}
 
@@ -6904,7 +6903,7 @@ void OutfitStudioFrame::OnTabButtonClick(wxCommandEvent& event) {
 		glView->SetSegmentMode();
 		glView->SetMaskVisible(false);
 		glView->SetGlobalBrushCollision(false);
-		glView->ClearColors();
+		glView->ClearMasks();
 
 		menuBar->Check(XRCID("btnMaskBrush"), true);
 		menuBar->Check(XRCID("btnBrushCollision"), false);
@@ -6973,7 +6972,7 @@ void OutfitStudioFrame::OnTabButtonClick(wxCommandEvent& event) {
 		glView->SetSegmentMode();
 		glView->SetMaskVisible(false);
 		glView->SetGlobalBrushCollision(false);
-		glView->ClearColors();
+		glView->ClearMasks();
 
 		menuBar->Check(XRCID("btnMaskBrush"), true);
 		menuBar->Check(XRCID("btnBrushCollision"), false);
@@ -9781,7 +9780,7 @@ void OutfitStudioFrame::OnMaskWeighted(wxCommandEvent& WXUNUSED(event)) {
 		if (!m)
 			continue;
 
-		m->ColorChannelFill(0, 0.0f);
+		m->MaskFill(0.0f);
 
 		auto& bones = project->GetWorkAnim()->shapeBones;
 		if (bones.find(shapeName) != bones.end()) {
@@ -9790,7 +9789,7 @@ void OutfitStudioFrame::OnMaskWeighted(wxCommandEvent& WXUNUSED(event)) {
 				if (weights) {
 					for (auto &bw : *weights)
 						if (bw.second > 0.0f)
-							m->vcolors[bw.first].x = 1.0f;
+							m->mask[bw.first] = 1.0f;
 				}
 			}
 		}
@@ -9808,17 +9807,17 @@ void OutfitStudioFrame::OnMaskBoneWeighted(wxCommandEvent& WXUNUSED(event)) {
 	for (auto &i : selectedItems) {
 		std::string shapeName = i->GetShape()->name.get();
 		mesh* m = glView->GetMesh(shapeName);
-		if (!m || !m->vcolors)
+		if (!m || !m->mask)
 			continue;
 
-		m->ColorChannelFill(0, 0.0f);
+		m->MaskFill(0.0f);
 
 		for (auto &b : GetSelectedBones()) {
 			auto weights = project->GetWorkAnim()->GetWeightsPtr(shapeName, b);
 			if (weights) {
 				for (auto &bw : *weights)
 					if (bw.second > 0.0f)
-						m->vcolors[bw.first].x = 1.0f;
+						m->mask[bw.first] = 1.0f;
 			}
 		}
 	}
@@ -10557,6 +10556,8 @@ void wxGLPanel::AddMeshFromNif(NifFile* nif, const std::string& shapeName) {
 		m->BuildTriAdjacency();
 		m->BuildEdgeList();
 		m->ColorFill(Vector3());
+		m->MaskFill(0.0f);
+		m->WeightFill(0.0f);
 
 		if (extInitialized) {
 			gls.SetContext();
@@ -11308,11 +11309,11 @@ bool wxGLPanel::SelectVertex(const wxPoint& screenPos) {
 		mesh* m = GetMesh(os->activeItem->GetShape()->name.get());
 		if (m) {
 			if (wxGetKeyState(WXK_CONTROL))
-				m->vcolors[vertIndex].x = 1.0f;
+				m->mask[vertIndex] = 1.0f;
 			else if (!segmentMode)
-				m->vcolors[vertIndex].x = 0.0f;
+				m->mask[vertIndex] = 0.0f;
 
-			m->QueueUpdate(mesh::UpdateType::VertexColors);
+			m->QueueUpdate(mesh::UpdateType::Mask);
 		}
 	}
 
@@ -11549,10 +11550,10 @@ void wxGLPanel::ApplyUndoState(UndoStateProject *usp, bool bUndo, bool bRender) 
 					continue;
 
 				for (auto &wIt : bw.weights)
-					m->vcolors[wIt.first].y = bUndo ? wIt.second.startVal : wIt.second.endVal;
+					m->weight[wIt.first] = bUndo ? wIt.second.startVal : wIt.second.endVal;
 			}
 
-			m->QueueUpdate(mesh::UpdateType::VertexColors);
+			m->QueueUpdate(mesh::UpdateType::Weight);
 		}
 
 		os->ActiveShapesUpdated(usp, bUndo);
@@ -11564,19 +11565,34 @@ void wxGLPanel::ApplyUndoState(UndoStateProject *usp, bool bUndo, bool bRender) 
 				os->project->ApplyBoneScale(activeBone, boneScalePos, true);
 		}
 	}
-	else if (undoType == UT_MASK || undoType == UT_COLOR) {
+	else if (undoType == UT_MASK) {
 		for (auto &uss : usp->usss) {
 			mesh *m = GetMesh(uss.shapeName);
 			if (!m)
 				continue;
 
 			for (auto &pit : (bUndo ? uss.pointStartState : uss.pointEndState))
+				m->mask[pit.first] = pit.second.x;
+
+			m->QueueUpdate(mesh::UpdateType::Mask);
+		}
+
+		if (undoType != UT_MASK)
+			os->ActiveShapesUpdated(usp, bUndo);
+	}
+	else if (undoType == UT_COLOR) {
+		for (auto& uss : usp->usss) {
+			mesh* m = GetMesh(uss.shapeName);
+			if (!m)
+				continue;
+
+			for (auto& pit : (bUndo ? uss.pointStartState : uss.pointEndState))
 				m->vcolors[pit.first] = pit.second;
 
 			m->QueueUpdate(mesh::UpdateType::VertexColors);
 		}
 
-		if (undoType != UT_MASK)
+		if (undoType != UT_COLOR)
 			os->ActiveShapesUpdated(usp, bUndo);
 	}
 	else if (undoType == UT_ALPHA) {
@@ -12189,7 +12205,7 @@ void wxGLPanel::ShowVertexEdit(bool show) {
 			mesh* m = GetMesh(os->activeItem->GetShape()->name.get());
 			if (m) {
 				m->bShowPoints = true;
-				m->QueueUpdate(mesh::UpdateType::VertexColors);
+				m->QueueUpdate(mesh::UpdateType::Mask);
 			}
 		}
 	}

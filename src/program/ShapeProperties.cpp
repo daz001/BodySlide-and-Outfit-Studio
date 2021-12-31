@@ -153,7 +153,7 @@ void ShapeProperties::GetShader() {
 		shaderName->SetValue(shader->name.get());
 		vertexColors->SetValue(currentVertexColors);
 		vertexAlpha->SetValue(currentVertexAlpha);
-		
+
 		Color4 color;
 		Vector3 colorVec;
 		if (shader->HasType<BSEffectShaderProperty>()) {
@@ -297,7 +297,6 @@ void ShapeProperties::OnAddShader(wxCommandEvent& WXUNUSED(event)) {
 		vertexAlpha->Enable();
 		alphaTest->Enable();
 		alphaBlend->Enable();
-
 	}
 }
 
@@ -468,6 +467,7 @@ void ShapeProperties::GetTransparency() {
 		alphaTest->SetValue(alphaProp->flags & (1 << 9));
 		alphaBlend->Enable();
 		alphaBlend->SetValue(alphaProp->flags & 1);
+
 		NiShader* shader = nif->GetShader(shape);
 		if (shader) {
 			vertexAlpha->Enable();
@@ -489,7 +489,6 @@ void ShapeProperties::OnAddTransparency(wxCommandEvent& WXUNUSED(event)) {
 
 void ShapeProperties::AddTransparency() {
 	auto alphaProp = std::make_unique<NiAlphaProperty>();
-	alphaProp->flags = 4844;
 	nif->AssignAlphaProperty(shape, std::move(alphaProp));
 	GetTransparency();
 	os->SetPendingChanges();
