@@ -1511,11 +1511,11 @@ void OutfitProject::CopyBoneWeights(NiShape* shape, const float proximityRadius,
 	std::string shapeName = shape->name.get();
 	std::string baseShapeName = baseShape->name.get();
 
-    owner->UpdateProgress(1, _("Gathering bones..."));
+	owner->UpdateProgress(1, _("Gathering bones..."));
 
 	int nBones = boneList.size();
 	if (nBones <= 0 || nCopyBones <= 0) {
-        owner->UpdateProgress(90);
+		owner->UpdateProgress(90);
 		return;
 	}
 
@@ -1539,16 +1539,16 @@ void OutfitProject::CopyBoneWeights(NiShape* shape, const float proximityRadius,
 	nzer.SetUp(&uss, &workAnim, shapeName, boneList, lockedBones, nCopyBones, bSpreadWeight);
 	std::unordered_set<int> vertList;
 
-    owner->UpdateProgress(10, _("Initializing proximity data..."));
-	
+	owner->UpdateProgress(10, _("Initializing proximity data..."));
+
 	InitConform();
 	morpher.LinkRefDiffData(&dds);
 	morpher.BuildProximityCache(shapeName, proximityRadius);
 	workNif.CreateSkinning(shape);
 
-    int step = 40 / nCopyBones;
-    int prog = 40;
-    owner->UpdateProgress(prog);
+	int step = 40 / nCopyBones;
+	int prog = 40;
+	owner->UpdateProgress(prog);
 
 	for (int bi = 0; bi < nCopyBones; ++bi) {
 		const std::string &boneName = boneList[bi];
@@ -1886,7 +1886,11 @@ int OutfitProject::LoadReferenceTemplate(const std::string& sourceFile, const st
 }
 
 int OutfitProject::LoadReferenceNif(const std::string& fileName, const std::string& shapeName, bool mergeSliders, bool keepZaps) {
-	if (mergeSliders)
+
+	if (!mergeSliders && keepZaps)
+		owner->DeleteSliders(true);
+
+	if (keepZaps || mergeSliders)
 		DeleteShape(baseShape);
 	else
 		ClearReference();
@@ -1937,15 +1941,16 @@ int OutfitProject::LoadReferenceNif(const std::string& fileName, const std::stri
 	}
 
 	baseShape = workNif.FindBlockByName<NiShape>(shapeName);
-
-	if(keepZaps)
-		owner->DeleteSliders(true);
 	
 	activeSet.LoadSetDiffData(baseDiffData);
 	return 0;
 }
 
 int OutfitProject::LoadReference(const std::string& fileName, const std::string& setName, bool mergeSliders, const std::string& shapeName, bool keepZaps) {
+
+	if (!mergeSliders && keepZaps)
+		owner->DeleteSliders(true);
+
 	if (keepZaps || mergeSliders)
 		DeleteShape(baseShape);
 	else
@@ -2041,15 +2046,12 @@ int OutfitProject::LoadReference(const std::string& fileName, const std::string&
 
 	baseShape = workNif.FindBlockByName<NiShape>(shape);
 
-	if(keepZaps)
-		owner->DeleteSliders(true);
-	
 	if (mergeSliders)
 		activeSet.LoadSetDiffData(baseDiffData, shape);
 	else
 		activeSet.LoadSetDiffData(baseDiffData);
 
-	
+
 	activeSet.SetReferencedData(shape);
 	for (auto &dn : dataNames)
 		activeSet.SetReferencedDataByName(shape, dn, true);

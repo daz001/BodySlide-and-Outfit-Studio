@@ -3423,6 +3423,7 @@ void OutfitStudioFrame::OnLoadReference(wxCommandEvent& WXUNUSED(event)) {
 			tmplChoice->Select(0);
 
 		LoadDialogCheckBox(dlg, "chkKeepZapSliders");
+		LoadDialogCheckBox(dlg, "chkClearSliders");
 		
 		result = dlg.ShowModal();
 	}
@@ -3439,6 +3440,7 @@ void OutfitStudioFrame::OnLoadReference(wxCommandEvent& WXUNUSED(event)) {
 	UpdateProgress(10, _("Loading reference set..."));
 	bool mergeSliders = (XRCCTRL(dlg, "chkClearSliders", wxCheckBox)->IsChecked());
 	bool keepZapSliders = (XRCCTRL(dlg, "chkKeepZapSliders", wxCheckBox)->IsChecked());
+	OutfitStudioConfig.SetBoolValue("chkClearSliders", mergeSliders);
 	OutfitStudioConfig.SetBoolValue("chkKeepZapSliders", keepZapSliders);
 
 	int error = 0;
@@ -3526,39 +3528,6 @@ int OutfitStudioFrame::LoadReferenceTemplate(const wxString& refTemplate, bool k
 	}
 
 	return error;
-}
-
-void OutfitStudioFrame::LoadDialogChoice(wxDialog& dlg, const char* dlgProperty) const {
-	wxChoice* choice = XRCCTRL(dlg, dlgProperty, wxChoice);
-	for (auto& tmpl : refTemplates)
-		choice->Append(tmpl.GetName());
-
-	std::string lastValue = OutfitStudioConfig[dlgProperty];
-	if (!choice->SetStringSelection(wxString::FromUTF8(lastValue)))
-		choice->Select(0);
-}
-
-void OutfitStudioFrame::LoadDialogText(wxDialog& dlg, const char* dlgProperty) const {
-	wxTextCtrl* tmplChoice = XRCCTRL(dlg, dlgProperty, wxTextCtrl);
-	std::string lastValue = OutfitStudioConfig[dlgProperty];
-	tmplChoice->SetValue(lastValue);
-}
-
-void OutfitStudioFrame::LoadDialogCheckBox(wxDialog& dlg, const char* dlgProperty) const {
-	wxCheckBox* tmplChoice = XRCCTRL(dlg, dlgProperty, wxCheckBox);
-	bool lastValue = OutfitStudioConfig.GetBoolValue(dlgProperty);
-	tmplChoice->SetValue(lastValue);
-}
-
-bool OutfitStudioFrame::AlertProgressError(int error, const wxString& title, const wxString& message) {
-	if (error == 0)
-		return false;
-
-	wxLogError(message);
-	wxMessageBox(message, _(title), wxICON_ERROR);
-	EndProgress("", true);
-	RefreshGUIFromProj();
-	return true;
 }
 
 void OutfitStudioFrame::OnConvertBodyReference(wxCommandEvent& WXUNUSED(event)) {
@@ -3788,6 +3757,38 @@ void OutfitStudioFrame::OnConvertBodyReference(wxCommandEvent& WXUNUSED(event)) 
 	wxLogMessage("Finished conversion.");
 	UpdateProgress(100, _("Finished"));
 	EndProgress();
+}
+
+void OutfitStudioFrame::LoadDialogCheckBox(wxDialog& dlg, const char* dlgProperty) const {
+	wxCheckBox* tmplChoice = XRCCTRL(dlg, dlgProperty, wxCheckBox);
+	bool lastValue = OutfitStudioConfig.GetBoolValue(dlgProperty);
+	tmplChoice->SetValue(lastValue);
+}
+void OutfitStudioFrame::LoadDialogChoice(wxDialog& dlg, const char* dlgProperty) const {
+	wxChoice* choice = XRCCTRL(dlg, dlgProperty, wxChoice);
+	for (auto& tmpl : refTemplates)
+		choice->Append(tmpl.GetName());
+
+	std::string lastValue = OutfitStudioConfig[dlgProperty];
+	if (!choice->SetStringSelection(wxString::FromUTF8(lastValue)))
+		choice->Select(0);
+}
+
+void OutfitStudioFrame::LoadDialogText(wxDialog& dlg, const char* dlgProperty) const {
+	wxTextCtrl* tmplChoice = XRCCTRL(dlg, dlgProperty, wxTextCtrl);
+	std::string lastValue = OutfitStudioConfig[dlgProperty];
+	tmplChoice->SetValue(lastValue);
+}
+
+bool OutfitStudioFrame::AlertProgressError(int error, const wxString& title, const wxString& message) {
+	if (error == 0)
+		return false;
+
+	wxLogError(message);
+	wxMessageBox(message, _(title), wxICON_ERROR);
+	EndProgress("", true);
+	RefreshGUIFromProj();
+	return true;
 }
 
 void OutfitStudioFrame::OnLoadOutfit(wxCommandEvent& WXUNUSED(event)) {

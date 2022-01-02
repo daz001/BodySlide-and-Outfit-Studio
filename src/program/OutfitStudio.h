@@ -1208,10 +1208,10 @@ private:
 	void UpdateProjectHistory();
 
 	int LoadReferenceTemplate(const wxString& refTemplate, bool keepZapSliders);
+	bool AlertProgressError(int error, const wxString& title, const wxString& message);
 	void LoadDialogChoice(wxDialog& dlg, const char* dlgProperty) const;
 	void LoadDialogText(wxDialog& dlg, const char* dlgProperty) const;
 	void LoadDialogCheckBox(wxDialog& dlg, const char* dlgProperty) const;
-	bool AlertProgressError(int error, const wxString& title, const wxString& message);
 
 	void OnNewProject(wxCommandEvent& event);
 	void OnLoadProject(wxCommandEvent &event);
