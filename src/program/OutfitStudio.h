@@ -976,7 +976,6 @@ public:
 	wxTreeItemId partitionRoot;
 
 	std::map<std::string, wxSliderPanel*> sliderPanels;
-	std::queue<wxSliderPanel*> sliderDisplaysPool;
 	
 	void SetPendingChanges(bool pending = true);
 	bool CheckPendingChanges();
@@ -1169,9 +1168,6 @@ private:
 	wxBitmap* bmpSliderSettings = nullptr;
 
 	void createSliderGUI(const std::string& name, const size_t id, wxScrolledWindow* wnd, wxSizer* rootSz);
-	void AssignSliderDisplayGUI(const std::string& name, const size_t id, wxScrolledWindow* wnd, wxSizer* rootSz);
-	void ClearSliderDisplayGUI();
-	void ClearSliderDisplayGUI(wxSliderPanel* sd);
 	
 	void ScrollWindowIntoView(wxScrolledWindow* scrolled, wxWindow* window);
 	void HighlightSlider(const std::string& name);

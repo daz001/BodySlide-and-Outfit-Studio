@@ -1117,14 +1117,7 @@ OutfitStudioFrame::OutfitStudioFrame(const wxPoint& pos, const wxSize& size) {
 	bonesFilter->GetParent()->Hide();
 
 	project = new OutfitProject(this);	// Create empty project
-
 	CreateSetSliders();
-
-	sliderScroll->DestroyChildren();
-
-	auto rootSz = sliderScroll->GetSizer();
-	for (int i = wxID_HIGHEST + 1; i <= wxID_HIGHEST + 200; ++i)
-		createSliderGUI("", i, sliderScroll, rootSz);
 
 	bEditSlider = false;
 	activeItem = nullptr;
@@ -1164,12 +1157,6 @@ void OutfitStudioFrame::OnClose(wxCloseEvent& WXUNUSED(event)) {
 	if (editUV)
 		editUV->Close();
 
-	while(!sliderDisplaysPool.empty()) {
-		auto sliderDisplay = sliderDisplaysPool.front();
-		sliderDisplaysPool.pop();
-		sliderDisplay->Destroy();
-	}
-	
 	if (project) {
 		delete project;
 		project = nullptr;
@@ -2312,19 +2299,20 @@ void OutfitStudioFrame::CreateSetSliders() {
 	UpdateProgress(0, _("Clearing old sliders..."));
 
 	sliderScroll->Freeze();
+	sliderScroll->DestroyChildren();
 
-	ClearSliderDisplayGUI();
+	sliderPanels.clear();
 
 	sliderFilter->Clear();
 
 	wxSizer* rootSz = sliderScroll->GetSizer();
 
-	for (size_t i = 0; i < project->SliderCount(); i++)  {
+	for (size_t i = 0; i < project->SliderCount(); i++) {
 		UpdateProgress(inc, _("Loading slider: ") + project->GetSliderName(i));
 		if (project->SliderClamp(i))    // clamp sliders are a special case, usually an incorrect scale
 			continue;
 
-		AssignSliderDisplayGUI(project->GetSliderName(i), i, sliderScroll, rootSz);
+		createSliderGUI(project->GetSliderName(i), i, sliderScroll, rootSz);
 	}
 
 	if (!sliderScroll->GetDropTarget())
@@ -2332,6 +2320,7 @@ void OutfitStudioFrame::CreateSetSliders() {
 
 	sliderScroll->FitInside();
 	sliderScroll->Thaw();
+
 	DoFilterSliders();
 
 	EndProgress();
@@ -2342,66 +2331,11 @@ void OutfitStudioFrame::createSliderGUI(const std::string& name, const size_t id
 
 	auto sliderPanel = new wxSliderPanel(wnd, sliderName, id, *bmpEditSlider, *bmpSliderSettings);
 	sliderPanel->sliderReadout->Bind(wxEVT_TEXT, &OutfitStudioFrame::OnReadoutChange, this);
-	
-	sliderDisplaysPool.push(sliderPanel);
-}
 
-void OutfitStudioFrame::AssignSliderDisplayGUI(const std::string& name, const size_t id, wxScrolledWindow* wnd, wxSizer* rootSz) {
+	rootSz->Add(sliderPanel, 0, wxALL | wxEXPAND | wxFIXED_MINSIZE, 1);
 
-    if(sliderDisplaysPool.empty()){
-        createSliderGUI(name, id, wnd, rootSz);
-    }
-    
-    wxSliderPanel* d = sliderDisplaysPool.front();
-    sliderDisplaysPool.pop();
-
-    wxWindowID sliderCheckId = 1000 + id;
-	wxWindowID sliderID = 2000 + id;
-    d->highlighted = false;
-    d->sliderCheck->SetId(sliderCheckId);
-    d->slider->SetId(sliderID);
-    
-    wxString sn = wxString::FromUTF8(name);
-    d->btnSliderEdit->SetName(sn + "|btn");
-    d->btnSliderProp->SetName(sn + "|btnSliderProp");
-    d->btnMinus->SetName(sn + "|btnMinus");
-    d->btnPlus->SetName(sn + "|btnPlus");
-    d->sliderCheck->SetName(sn + "|check");
-    d->sliderName->SetName(sn + "|lbl");
-    d->sliderName->SetLabel(sn);
-    d->slider->SetName(sn + "|slider");
-    d->sliderReadout->SetName(sn + "|readout");
-
-    d->sliderCheck->Enable(true);
-    d->slider->SetValue(0);
-    d->btnSliderProp->Hide();
-    d->btnMinus->Hide();
-    d->btnPlus->Hide();
-    
-    d->Show();
-    d->Layout();
-    
-    rootSz->Add(d, 0, wxALL | wxEXPAND | wxFIXED_MINSIZE, 1);
-    
-    ShowSliderEffect(id);
-    sliderPanels[name] = d;
-}
-
-void OutfitStudioFrame::ClearSliderDisplayGUI() {
-	auto rootSz = sliderScroll->GetSizer();
-	for(auto sd: sliderPanels) {
-		sliderDisplaysPool.push(sd.second);
-		sd.second->Hide();
-		rootSz->Detach(sd.second);
-	}
-	sliderPanels.clear();
-	sliderScroll->Layout();
-}
-
-void OutfitStudioFrame::ClearSliderDisplayGUI(wxSliderPanel* sd) {
-	sd->Hide();
-	sliderScroll->GetSizer()->Detach(sd);
-	sliderDisplaysPool.push(sd);
+	ShowSliderEffect(id);
+	sliderPanels[name] = sliderPanel;
 }
 
 std::string OutfitStudioFrame::NewSlider(const std::string& suggestedName, bool skipPrompt) {
@@ -2428,7 +2362,7 @@ std::string OutfitStudioFrame::NewSlider(const std::string& suggestedName, bool 
 
 	wxLogMessage("Creating new slider '%s'.", sliderName);
 
-	AssignSliderDisplayGUI(sliderName, project->SliderCount(), sliderScroll, sliderScroll->GetSizer());
+	createSliderGUI(sliderName, project->SliderCount(), sliderScroll, sliderScroll->GetSizer());
 
 	project->AddEmptySlider(sliderName);
 	ShowSliderEffect(sliderName);
@@ -4776,7 +4710,7 @@ void OutfitStudioFrame::OnImportTRIHead(wxCommandEvent& WXUNUSED(event)) {
 		auto morphs = tri.GetMorphs();
 		for (auto &morph : morphs) {
 			if (!project->ValidSlider(morph.morphName)) {
-				AssignSliderDisplayGUI(morph.morphName, project->SliderCount(), sliderScroll, sliderScroll->GetSizer());
+				createSliderGUI(morph.morphName, project->SliderCount(), sliderScroll, sliderScroll->GetSizer());
 				project->AddEmptySlider(morph.morphName);
 				ShowSliderEffect(morph.morphName);
 			}
@@ -7382,13 +7316,18 @@ void OutfitStudioFrame::OnSliderImportOSD(wxCommandEvent& WXUNUSED(event)) {
 		ShowSliderEffect(sliderPanel.first, true);
 		sliderPanel.second->slider->SetFocus();
 
-		ClearSliderDisplayGUI(sliderPanel.second);
+		sliderPanel.second->btnSliderEdit->Destroy();
+		sliderPanel.second->btnSliderProp->Destroy();
+		sliderPanel.second->slider->Destroy();
+		sliderPanel.second->sliderName->Destroy();
+		sliderPanel.second->sliderCheck->Destroy();
+		sliderPanel.second->sliderReadout->Destroy();
+		sliderPanel.second->Destroy();
 
 		erase.push_back(sliderPanel.first);
 		project->DeleteSlider(sliderPanel.first);
 	}
 
-	ClearSliderDisplayGUI();
 	for (auto &e : erase)
 		sliderPanels.erase(e);
 
@@ -7410,7 +7349,7 @@ void OutfitStudioFrame::OnSliderImportOSD(wxCommandEvent& WXUNUSED(event)) {
 
 			std::string diffName = diff.first.substr(s.length(), diff.first.length() - s.length() + 1);
 			if (!project->ValidSlider(diffName)) {
-				AssignSliderDisplayGUI(diffName, project->SliderCount(), sliderScroll, sliderScroll->GetSizer());
+				createSliderGUI(diffName, project->SliderCount(), sliderScroll, sliderScroll->GetSizer());
 				project->AddEmptySlider(diffName);
 				ShowSliderEffect(diffName);
 			}
@@ -7467,13 +7406,18 @@ void OutfitStudioFrame::OnSliderImportTRI(wxCommandEvent& WXUNUSED(event)) {
 		ShowSliderEffect(sliderPanel.first, true);
 		sliderPanel.second->slider->SetFocus();
 
-		ClearSliderDisplayGUI(sliderPanel.second);
+		sliderPanel.second->btnSliderEdit->Destroy();
+		sliderPanel.second->btnSliderProp->Destroy();
+		sliderPanel.second->slider->Destroy();
+		sliderPanel.second->sliderName->Destroy();
+		sliderPanel.second->sliderCheck->Destroy();
+		sliderPanel.second->sliderReadout->Destroy();
+		sliderPanel.second->Destroy();
 
 		erase.push_back(sliderPanel.first);
 		project->DeleteSlider(sliderPanel.first);
 	}
 
-	ClearSliderDisplayGUI();
 	for (auto &e : erase)
 		sliderPanels.erase(e);
 
@@ -7492,7 +7436,7 @@ void OutfitStudioFrame::OnSliderImportTRI(wxCommandEvent& WXUNUSED(event)) {
 		addedMorphs += morph.first + "\n";
 		for (auto &morphData : morph.second) {
 			if (!project->ValidSlider(morphData->name)) {
-				AssignSliderDisplayGUI(morphData->name, project->SliderCount(), sliderScroll, sliderScroll->GetSizer());
+				createSliderGUI(morphData->name, project->SliderCount(), sliderScroll, sliderScroll->GetSizer());
 				project->AddEmptySlider(morphData->name);
 				ShowSliderEffect(morphData->name);
 			}
@@ -7783,7 +7727,7 @@ void OutfitStudioFrame::OnNewZapSlider(wxCommandEvent& WXUNUSED(event)) {
 	} while (project->ValidSlider(sliderName));
 
 	wxLogMessage("Creating new zap '%s'.", sliderName);
-	AssignSliderDisplayGUI(sliderName, project->SliderCount(), sliderScroll, sliderScroll->GetSizer());
+	createSliderGUI(sliderName, project->SliderCount(), sliderScroll, sliderScroll->GetSizer());
 
 	std::unordered_map<uint16_t, float> unmasked;
 	for (auto &i : selectedItems) {
@@ -7814,7 +7758,7 @@ void OutfitStudioFrame::OnNewCombinedSlider(wxCommandEvent& WXUNUSED(event)) {
 	} while (project->ValidSlider(sliderName));
 
 	wxLogMessage("Creating new combined slider '%s'.", sliderName);
-	AssignSliderDisplayGUI(sliderName, project->SliderCount(), sliderScroll, sliderScroll->GetSizer());
+	createSliderGUI(sliderName, project->SliderCount(), sliderScroll, sliderScroll->GetSizer());
 
 	project->AddCombinedSlider(sliderName);
 	sliderScroll->FitInside();
@@ -7873,8 +7817,15 @@ void OutfitStudioFrame::DeleteSliders(bool keepZaps) {
 		ShowSliderEffect(sliderName, true);
 		sliderPanel->slider->SetFocus();
 
+		sliderPanel->btnSliderEdit->Destroy();
+		sliderPanel->btnSliderProp->Destroy();
+		sliderPanel->slider->Destroy();
+		sliderPanel->sliderName->Destroy();
+		sliderPanel->sliderCheck->Destroy();
+		sliderPanel->sliderReadout->Destroy();
+		sliderPanel->Destroy();
+
 		sliderScroll->FitInside();
-		ClearSliderDisplayGUI(sliderPanel);
 		project->DeleteSlider(sliderName);
 	};
 

@@ -6,7 +6,7 @@ See the included LICENSE file
 #include "wxSliderPanel.h"
 
 IMPLEMENT_DYNAMIC_CLASS(wxSliderPanel, wxPanel)
- 
+
 BEGIN_EVENT_TABLE(wxSliderPanel, wxPanel)
 END_EVENT_TABLE()
 
@@ -22,7 +22,7 @@ wxSliderPanel::wxSliderPanel(wxWindow* parent, const wxString& name, size_t id, 
 	SetMaxSize(wxSize(-1, 25));
 
 	sizer = new wxBoxSizer(wxHORIZONTAL);
-	
+
 	btnSliderEdit = new wxBitmapButton();
 	btnSliderEdit->Create(this, wxID_ANY, bmpEdit, wxDefaultPosition, wxSize(22, 22), wxBU_AUTODRAW, wxDefaultValidator, name + "|btn");
 	btnSliderEdit->SetToolTip(_("Turn on edit mode for this slider."));
@@ -78,5 +78,7 @@ wxSliderPanel::wxSliderPanel(wxWindow* parent, const wxString& name, size_t id, 
 	sizer->Add(sliderReadout, 0, wxALIGN_CENTER_VERTICAL | wxALL, 2);
 
 	SetSizer(sizer);
+	Layout();
 	sizer->Fit(this);
+	Show();
 }
