@@ -25,11 +25,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "../components/SliderGroup.h"
 #include "../files/TriFile.h"
 #include "../utils/PlatformUtil.h"
+#include "../utils/ConfigDialogUtil.h"
 
 #include <wx/debugrpt.h>
 #include <wx/wfstream.h>
 #include <wx/zipstrm.h>
 #include <sstream>
+
+#include "ConvertBodyReferenceDialog.h"
 
 using namespace nifly;
 
@@ -3425,8 +3428,8 @@ void OutfitStudioFrame::OnLoadReference(wxCommandEvent& WXUNUSED(event)) {
 		if (!tmplChoice->SetStringSelection(wxString::FromUTF8(lastRefTemplate)))
 			tmplChoice->Select(0);
 
-		LoadDialogCheckBox(dlg, "chkKeepZapSliders");
-		LoadDialogCheckBox(dlg, "chkClearSliders");
+		ConfigDialogUtil::LoadDialogCheckBox(OutfitStudioConfig, dlg, "chkKeepZapSliders");
+		ConfigDialogUtil::LoadDialogCheckBox(OutfitStudioConfig, dlg, "chkClearSliders");
 		
 		result = dlg.ShowModal();
 	}
@@ -3546,26 +3549,8 @@ void OutfitStudioFrame::OnConvertBodyReference(wxCommandEvent& WXUNUSED(event)) 
 
 	UpdateReferenceTemplates();
 
-	wxDialog dlg;
-	int result = wxID_CANCEL;
-	if (wxXmlResource::Get()->LoadObject((wxObject*)&dlg, this, "dlgConvertBodyRef", "wxDialog")) {
-		wxChoice* choice = XRCCTRL(dlg, "npConvRefChoice", wxChoice);
-		choice->Append("None");
-		
-		LoadDialogChoice(dlg, "npConvRefChoice");
-		LoadDialogChoice(dlg, "npNewRefChoice");
-		LoadDialogText(dlg, "npRemoveText");
-		LoadDialogText(dlg, "npAppendText");
-		LoadDialogText(dlg, "npDeleteShapesText");
-		LoadDialogText(dlg, "npAddBonesText");
-		LoadDialogCheckBox(dlg, "chkKeepZapSliders");
-		LoadDialogCheckBox(dlg, "chkSkipConformPopup");
-		LoadDialogCheckBox(dlg, "chkSkipCopyBonesPopup");
-		LoadDialogCheckBox(dlg, "chkDeleteReferenceOnComplete");
-		LoadDialogCheckBox(dlg, "chkDeleteUnreferencedNodesOnComplete");
-
-		result = dlg.ShowModal();
-	}
+	ConvertBodyReferenceDialog dlg(this, OutfitStudioConfig, refTemplates);
+	int result = dlg.ShowModal();
 	if (result == wxID_CANCEL)
 		return;
 
@@ -3759,27 +3744,6 @@ void OutfitStudioFrame::OnConvertBodyReference(wxCommandEvent& WXUNUSED(event)) 
 	wxLogMessage("Finished conversion.");
 	UpdateProgress(100, _("Finished"));
 	EndProgress();
-}
-
-void OutfitStudioFrame::LoadDialogCheckBox(wxDialog& dlg, const char* dlgProperty) const {
-	wxCheckBox* tmplChoice = XRCCTRL(dlg, dlgProperty, wxCheckBox);
-	bool lastValue = OutfitStudioConfig.GetBoolValue(dlgProperty);
-	tmplChoice->SetValue(lastValue);
-}
-void OutfitStudioFrame::LoadDialogChoice(wxDialog& dlg, const char* dlgProperty) const {
-	wxChoice* choice = XRCCTRL(dlg, dlgProperty, wxChoice);
-	for (auto& tmpl : refTemplates)
-		choice->Append(tmpl.GetName());
-
-	std::string lastValue = OutfitStudioConfig[dlgProperty];
-	if (!choice->SetStringSelection(wxString::FromUTF8(lastValue)))
-		choice->Select(0);
-}
-
-void OutfitStudioFrame::LoadDialogText(wxDialog& dlg, const char* dlgProperty) const {
-	wxTextCtrl* tmplChoice = XRCCTRL(dlg, dlgProperty, wxTextCtrl);
-	std::string lastValue = OutfitStudioConfig[dlgProperty];
-	tmplChoice->SetValue(lastValue);
 }
 
 bool OutfitStudioFrame::AlertProgressError(int error, const wxString& title, const wxString& message) {
