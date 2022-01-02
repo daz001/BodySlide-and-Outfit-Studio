@@ -6,7 +6,7 @@ See the included LICENSE file
 #include "wxSliderPanel.h"
 
 IMPLEMENT_DYNAMIC_CLASS(wxSliderPanel, wxPanel)
-
+ 
 BEGIN_EVENT_TABLE(wxSliderPanel, wxPanel)
 END_EVENT_TABLE()
 

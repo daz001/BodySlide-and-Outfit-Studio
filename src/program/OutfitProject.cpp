@@ -1941,7 +1941,6 @@ int OutfitProject::LoadReferenceNif(const std::string& fileName, const std::stri
 	}
 
 	baseShape = workNif.FindBlockByName<NiShape>(shapeName);
-	
 	activeSet.LoadSetDiffData(baseDiffData);
 	return 0;
 }
@@ -2051,7 +2050,6 @@ int OutfitProject::LoadReference(const std::string& fileName, const std::string&
 	else
 		activeSet.LoadSetDiffData(baseDiffData);
 
-
 	activeSet.SetReferencedData(shape);
 	for (auto &dn : dataNames)
 		activeSet.SetReferencedDataByName(shape, dn, true);
@@ -2156,7 +2154,6 @@ int OutfitProject::AddFromSliderSet(const std::string& fileName, const std::stri
 	}
 
 	SliderSet addSet;
-	
 	owner->UpdateProgress(20, _("Retrieving sliders..."));
 	if (InSS.GetSet(sliderSetName, addSet)) {
 		owner->EndProgress();
@@ -2223,7 +2220,6 @@ int OutfitProject::AddFromSliderSet(const std::string& fileName, const std::stri
 
 	owner->UpdateProgress(100, _("Finished"));
 	owner->EndProgress();
-	
 	return 0;
 }
 

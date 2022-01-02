@@ -1,2 +1,7 @@
-<OutfitStudioConfig>
+﻿<OutfitStudioConfig>
+    <OutfitStudioFrame width="1150" height="780" maximized="false"></OutfitStudioFrame>
+    <ProjectHistory>
+        <Project file="C:\Program Files (x86)\Steam\steamapps\common\Skyrim Special Edition\Data\CalienteTools\BodySlide\SliderSets\BD BHUNP Barkeeper dress.osp" name="BD BHUNP Barkeeper dress"></Project>
+        <Project file="C:\Program Files (x86)\Steam\steamapps\common\Skyrim Special Edition\Data\CalienteTools\BodySlide\SliderSets\BD UUNP  Fine boots.osp" name="BD UUNP  Fine boots"></Project>
+        <Project file="C:\Program Files (x86)\Steam\steamapps\common\Skyrim Special Edition\Data\CalienteTools\BodySlide\SliderSets\BD BHUNP Orcish armor.osp" name="BD BHUNP Orcish armor"></Project></ProjectHistory>
 </OutfitStudioConfig>
