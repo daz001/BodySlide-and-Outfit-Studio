@@ -924,6 +924,7 @@ public:
 	std::unordered_set<std::string> lastNormalizeBones;
 
 	PoseDataCollection poseDataCollection;
+	wxSliderPanelPool sliderPool;
 
 	wxTreeCtrl* outfitShapes = nullptr;
 	wxTreeCtrl* outfitBones = nullptr;
@@ -1039,6 +1040,9 @@ public:
 
 	bool CheckEditableState();
 
+	size_t GetNextSliderIndex();
+
+	void HideSliderPanel(wxSliderPanel* sliderPanel);
 	void EnterSliderEdit(const std::string& sliderName = "");
 	void ExitSliderEdit();
 	void MenuEnterSliderEdit();
@@ -1254,10 +1258,12 @@ private:
 	void OnSaveSliderSetAs(wxCommandEvent &event);
 	void SetBaseShape();
 
-	void OnSlider(wxScrollEvent& event);
+	void OnSlider(wxCommandEvent& event);
 	void OnClickSliderButton(wxCommandEvent &event);
 	void OnReadoutChange(wxCommandEvent& event);
-	void OnCheckBox(wxCommandEvent& event);
+	void OnSliderCheckBox(wxCommandEvent& event);
+
+	void OnBoneScaleSlider(wxCommandEvent& event);
 
 	void OnTabButtonClick(wxCommandEvent& event);
 	void OnBrushColorChanged(wxColourPickerEvent& event);
