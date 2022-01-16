@@ -66,13 +66,13 @@ std::string OutfitProject::Save(const wxFileName& sliderSetFile,
 	outSet.SetOutputFile(gameFile);
 	outSet.SetGenWeights(genWeights);
 
-	const wxString sliderSetsStr = "SliderSets\\";
+	const wxString sliderSetsStr = "SliderSets";
 
 	wxFileName ssFileName(sliderSetFile);
 	int sliderSetsStrIndex = ssFileName.GetDirs().Index(sliderSetsStr);
 	if (sliderSetsStrIndex == wxNOT_FOUND) {
 		// Make path relative to "SliderSets\", only use file name
-		ssFileName = wxFileName(sliderSetsStr + sliderSetFile.GetFullName());
+		ssFileName = wxFileName(sliderSetsStr + PathSepStr + sliderSetFile.GetFullName());
 	}
 
 	if (ssFileName.IsRelative())
@@ -1870,7 +1870,7 @@ int OutfitProject::LoadSkeletonReference(const std::string& skeletonFileName) {
 	return AnimSkeleton::getInstance().LoadFromNif(skeletonFileName);
 }
 
-int OutfitProject::LoadReferenceTemplate(const std::string& sourceFile, const std::string& set, const std::string& shape, bool loadAll, bool mergeSliders, bool keepZaps) {
+int OutfitProject::LoadReferenceTemplate(const std::string& sourceFile, const std::string& set, const std::string& shape, bool loadAll, bool mergeSliders, bool mergeZaps) {
 	if (sourceFile.empty() || set.empty()) {
 		wxLogError("Template source entries are invalid.");
 		wxMessageBox(_("Template source entries are invalid."), _("Reference Error"), wxICON_ERROR, owner);
@@ -1882,16 +1882,14 @@ int OutfitProject::LoadReferenceTemplate(const std::string& sourceFile, const st
 		return AddFromSliderSet(sourceFile, set);
 	}
 	else
-		return LoadReference(sourceFile, set, mergeSliders, shape, keepZaps);
+		return LoadReference(sourceFile, set, shape, mergeSliders, mergeZaps);
 }
 
-int OutfitProject::LoadReferenceNif(const std::string& fileName, const std::string& shapeName, bool mergeSliders, bool keepZaps) {
-
-	if (!mergeSliders && keepZaps)
-		owner->DeleteSliders(true);
-
-	if (keepZaps || mergeSliders)
+int OutfitProject::LoadReferenceNif(const std::string& fileName, const std::string& shapeName, bool mergeSliders, bool mergeZaps) {
+	if (mergeZaps || mergeSliders) {
+		owner->DeleteSliders(mergeSliders, mergeZaps);
 		DeleteShape(baseShape);
+	}
 	else
 		ClearReference();
 
@@ -1945,13 +1943,11 @@ int OutfitProject::LoadReferenceNif(const std::string& fileName, const std::stri
 	return 0;
 }
 
-int OutfitProject::LoadReference(const std::string& fileName, const std::string& setName, bool mergeSliders, const std::string& shapeName, bool keepZaps) {
-
-	if (!mergeSliders && keepZaps)
-		owner->DeleteSliders(true);
-
-	if (keepZaps || mergeSliders)
+int OutfitProject::LoadReference(const std::string& fileName, const std::string& setName, const std::string& shapeName, bool mergeSliders, bool mergeZaps) {
+	if (mergeZaps || mergeSliders) {
+		owner->DeleteSliders(mergeSliders, mergeZaps);
 		DeleteShape(baseShape);
+	}
 	else
 		ClearReference();
 

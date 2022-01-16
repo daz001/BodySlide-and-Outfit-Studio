@@ -960,8 +960,8 @@ OutfitStudioFrame::OutfitStudioFrame(const wxPoint& pos, const wxSize& size) {
 	OutfitStudioConfig.GetValueAttributeArray("ProjectHistory", "Project", "name", projectHistoryNames);
 
 	if (projectHistoryFiles.size() == projectHistoryNames.size())
-		for (size_t i = 0; i < projectHistoryFiles.size(); i++)
-			AddProjectHistory(projectHistoryFiles[i], projectHistoryNames[i]);
+		for (size_t i = projectHistoryFiles.size(); i > 0; --i)
+			AddProjectHistory(projectHistoryFiles[i - 1], projectHistoryNames[i - 1]);
 
 	toolBarH = (wxToolBar*)FindWindowByName("toolBarH");
 	toolBarV = (wxToolBar*)FindWindowByName("toolBarV");
@@ -2252,7 +2252,7 @@ bool OutfitStudioFrame::LoadProject(const std::string& fileName, const std::stri
 			wxLogMessage("Loading reference shape '%s'...", shapeName);
 			UpdateProgress(50, wxString::Format(_("Loading reference shape '%s'..."), shapeName));
 
-			error = project->LoadReferenceNif(project->activeSet.GetInputFileName(), shapeName, true);
+			error = project->LoadReferenceNif(project->activeSet.GetInputFileName(), shapeName, true, true);
 			if (error) {
 				EndProgress();
 				RefreshGUIFromProj();
@@ -3322,8 +3322,7 @@ void OutfitStudioFrame::OnNewProject(wxCommandEvent& WXUNUSED(event)) {
 			wxLogMessage("Loading reference '%s' from set '%s' of file '%s'...",
 				refShape, sliderSetName, fileName);
 
-			error = project->LoadReference(fileName.ToUTF8().data(),
-				sliderSetName.ToUTF8().data(), false, refShape.ToUTF8().data());
+			error = project->LoadReference(fileName.ToUTF8().data(), sliderSetName.ToUTF8().data(), refShape.ToUTF8().data());
 		}
 		else if (fileName.EndsWith(".nif")) {
 			wxLogMessage("Loading reference '%s' from '%s'...", refShape, fileName);
@@ -3428,8 +3427,8 @@ void OutfitStudioFrame::OnLoadReference(wxCommandEvent& WXUNUSED(event)) {
 		if (!tmplChoice->SetStringSelection(wxString::FromUTF8(lastRefTemplate)))
 			tmplChoice->Select(0);
 
-		ConfigDialogUtil::LoadDialogCheckBox(OutfitStudioConfig, dlg, "chkKeepZapSliders");
-		ConfigDialogUtil::LoadDialogCheckBox(OutfitStudioConfig, dlg, "chkClearSliders");
+		ConfigDialogUtil::LoadDialogCheckBox(OutfitStudioConfig, dlg, "chkMergeSliders");
+		ConfigDialogUtil::LoadDialogCheckBox(OutfitStudioConfig, dlg, "chkMergeZaps");
 		
 		result = dlg.ShowModal();
 	}
@@ -3443,10 +3442,10 @@ void OutfitStudioFrame::OnLoadReference(wxCommandEvent& WXUNUSED(event)) {
 		glView->DeleteMesh(baseShape->name.get());
 
 	UpdateProgress(10, _("Loading reference set..."));
-	bool mergeSliders = (XRCCTRL(dlg, "chkClearSliders", wxCheckBox)->IsChecked());
-	bool keepZapSliders = (XRCCTRL(dlg, "chkKeepZapSliders", wxCheckBox)->IsChecked());
-	OutfitStudioConfig.SetBoolValue("chkClearSliders", mergeSliders);
-	OutfitStudioConfig.SetBoolValue("chkKeepZapSliders", keepZapSliders);
+	bool mergeSliders = (XRCCTRL(dlg, "chkMergeSliders", wxCheckBox)->IsChecked());
+	bool mergeZaps = (XRCCTRL(dlg, "chkMergeZaps", wxCheckBox)->IsChecked());
+	OutfitStudioConfig.SetBoolValue("chkMergeSliders", mergeSliders);
+	OutfitStudioConfig.SetBoolValue("chkMergeZaps", mergeZaps);
 
 	int error = 0;
 	if (XRCCTRL(dlg, "npRefIsTemplate", wxRadioButton)->GetValue() == true) {
@@ -3459,9 +3458,9 @@ void OutfitStudioFrame::OnLoadReference(wxCommandEvent& WXUNUSED(event)) {
 		auto tmpl = find_if(refTemplates.begin(), refTemplates.end(), [&tmplName](const RefTemplate& rt) { return rt.GetName() == tmplName; });
 		if (tmpl != refTemplates.end()) {
 			if (wxFileName(wxString::FromUTF8(tmpl->GetSource())).IsRelative())
-				error = project->LoadReferenceTemplate(GetProjectPath() + PathSepStr + tmpl->GetSource(), tmpl->GetSetName(), tmpl->GetShape(), tmpl->GetLoadAll(), mergeSliders, keepZapSliders);
+				error = project->LoadReferenceTemplate(GetProjectPath() + PathSepStr + tmpl->GetSource(), tmpl->GetSetName(), tmpl->GetShape(), tmpl->GetLoadAll(), mergeSliders, mergeZaps);
 			else
-				error = project->LoadReferenceTemplate(tmpl->GetSource(), tmpl->GetSetName(), tmpl->GetShape(), tmpl->GetLoadAll(), mergeSliders, keepZapSliders);
+				error = project->LoadReferenceTemplate(tmpl->GetSource(), tmpl->GetSetName(), tmpl->GetShape(), tmpl->GetLoadAll(), mergeSliders, mergeZaps);
 		}
 		else
 			error = 1;
@@ -3475,12 +3474,11 @@ void OutfitStudioFrame::OnLoadReference(wxCommandEvent& WXUNUSED(event)) {
 			wxLogMessage("Loading reference '%s' from set '%s' of file '%s'...",
 				refShape, sliderSetName, fileName);
 
-			error = project->LoadReference(fileName.ToUTF8().data(),
-				sliderSetName.ToUTF8().data(), mergeSliders, refShape.ToUTF8().data(), keepZapSliders);
+			error = project->LoadReference(fileName.ToUTF8().data(), sliderSetName.ToUTF8().data(), refShape.ToUTF8().data(), mergeSliders, mergeZaps);
 		}
 		else if (fileName.EndsWith(".nif")) {
 			wxLogMessage("Loading reference '%s' from '%s'...", refShape, fileName);
-			error = project->LoadReferenceNif(fileName.ToUTF8().data(), refShape.ToUTF8().data(), mergeSliders, keepZapSliders);
+			error = project->LoadReferenceNif(fileName.ToUTF8().data(), refShape.ToUTF8().data(), mergeSliders, mergeZaps);
 		}
 	}
 	else
@@ -4088,9 +4086,8 @@ void OutfitStudioFrame::UpdateAnimationGUI() {
 	project->GetActiveBones(activeBones);
 
 	wxArrayString activeBonesArr;
-	activeBonesArr.resize(activeBones.size());
 	for (auto& bone : activeBones)
-		activeBonesArr.Add(bone);
+		activeBonesArr.Add(wxString::FromUTF8(bone));
 
 	cXMirrorBone->Append(activeBonesArr);
 	cPoseBone->Append(activeBonesArr);
@@ -7748,7 +7745,10 @@ void OutfitStudioFrame::OnDeleteSlider(wxCommandEvent& WXUNUSED(event)) {
 	DeleteSliders();
 }
 
-void OutfitStudioFrame::DeleteSliders(bool keepZaps) {
+void OutfitStudioFrame::DeleteSliders(bool keepSliders, bool keepZaps) {
+
+	if (keepSliders && keepZaps)
+		return;
 
 	auto deleteSlider = [&](const std::string& sliderName) {
 		wxLogMessage("Deleting slider '%s'.", sliderName);
@@ -7767,7 +7767,8 @@ void OutfitStudioFrame::DeleteSliders(bool keepZaps) {
 	if (!bEditSlider) {
 		for (auto it = sliderPanels.begin(); it != sliderPanels.end();) {
 			if (it->second->sliderCheck->Get3StateValue() == wxCheckBoxState::wxCHK_CHECKED) {
-				if (keepZaps && project->activeSet[it->first].bZap) {
+				if ((keepZaps && project->activeSet[it->first].bZap) ||
+					(keepSliders && !project->activeSet[it->first].bZap)) {
 					++it;
 					continue;
 				}
