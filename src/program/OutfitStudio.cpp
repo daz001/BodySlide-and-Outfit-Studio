@@ -4048,6 +4048,11 @@ void OutfitStudioFrame::OnSaveSliderSetAs(wxCommandEvent& WXUNUSED(event)) {
 	SaveProjectAs();
 }
 
+void OutfitStudioFrame::OnSetBaseShape(wxCommandEvent& WXUNUSED(event)) {
+	wxLogMessage("Setting new base shape.");
+	SetBaseShape();
+}
+
 void OutfitStudioFrame::SetBaseShape() {
 	project->ClearBoneScale();
 
@@ -4062,11 +4067,6 @@ void OutfitStudioFrame::SetBaseShape() {
 		HighlightSlider("");
 		activeSlider.clear();
 	}
-}
-
-void OutfitStudioFrame::OnSetBaseShape(wxCommandEvent& WXUNUSED(event)) {
-	wxLogMessage("Setting new base shape.");
-	SetBaseShape();
 }
 
 void OutfitStudioFrame::OnImportNIF(wxCommandEvent& WXUNUSED(event)) {
@@ -7757,32 +7757,32 @@ void OutfitStudioFrame::OnSliderConformAll(wxCommandEvent& WXUNUSED(event)) {
 	ConformShapes(shapes);
 }
 
-
 int OutfitStudioFrame::ConformShapes(std::vector<NiShape*> shapes, bool silent) {
 	
 	ConformOptions options;
 	if (ShowConform(options, silent)) {
-		wxLogMessage("Conforming Shapes.");
-
+		wxLogMessage("Conforming shapes...");
 		ZeroSliders();
 
-		StartProgress(_("Conforming all shapes..."));
+		StartProgress(_("Conforming shapes..."));
 		project->InitConform();
 
 		int inc = 100 / shapes.size() - 1;
 		int pos = 0;
 
-		for (auto& shape : shapes) {
-			wxLogMessage(_("Conforming: ") + shape->name.get());
-            UpdateProgress(pos * inc, _("Conforming: ") + shape->name.get());
-            StartSubProgress(pos * inc, pos * inc + inc);
-            ConformSliders(shape, options);
+		for (auto &shape : shapes) {
+			UpdateProgress(pos * inc, _("Conforming: ") + shape->name.get());
+			StartSubProgress(pos * inc, pos * inc + inc);
+			ConformSliders(shape, options);
 			pos++;
 			EndProgress();
 		}
 
 		project->morpher.ClearProximityCache();
 		project->morpher.UnlinkRefDiffData();
+
+		if (statusBar)
+			statusBar->SetStatusText(_("All shapes conformed."));
 
 		SetPendingChanges();
 
@@ -9280,7 +9280,7 @@ int OutfitStudioFrame::CopyBoneWeightForShapes(std::vector<NiShape*> shapes, boo
 
 		UpdateUndoTools();
 
-		UpdateProgress(90, _("Finished"));
+		UpdateProgress(100, _("Finished"));
 		EndProgress();
 	}
 

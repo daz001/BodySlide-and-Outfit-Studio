@@ -1390,7 +1390,7 @@ private:
 	void OnDeleteUnreferencedNodes(wxCommandEvent& event);
 	void OnRemoveSkinning(wxCommandEvent& event);
 	void OnShapeProperties(wxCommandEvent& event);
-	
+
 	void OnMaskLess(wxCommandEvent& event);
 	void OnMaskMore(wxCommandEvent& event);
 

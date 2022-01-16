@@ -707,7 +707,7 @@
 	</object>
 	<object class="wxDialog" name="dlgShapeTextures">
 		<style>wxDEFAULT_DIALOG_STYLE</style>
-		<size>800,308</size>
+		<size>457,308</size>
 		<title>Set Shape Textures</title>
 		<centered>1</centered>
 		<object class="wxBoxSizer">
