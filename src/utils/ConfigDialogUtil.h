@@ -34,4 +34,25 @@ namespace ConfigDialogUtil {
 		bool lastValue = configManager.GetBoolValue(dlgProperty);
 		tmplChoice->SetValue(lastValue);
 	}
+
+	inline bool SetBoolFromDialogCheckbox(ConfigurationManager& configManager, const wxDialog& dlg, const char* dlgProperty)
+	{
+		const bool value = (XRCCTRL(dlg, dlgProperty, wxCheckBox)->IsChecked());
+		configManager.SetBoolValue(dlgProperty, value);
+		return value;
+	}
+
+	inline wxString SetStringFromDialogChoice(ConfigurationManager& configManager, const wxDialog& dlg, const char* dlgProperty)
+	{
+		const wxString str = XRCCTRL(dlg, dlgProperty, wxChoice)->GetStringSelection();
+		configManager.SetValue(dlgProperty, str.ToStdString());
+		return str;
+	}
+
+	inline wxString SetStringFromDialogTextControl(ConfigurationManager& configManager, const wxDialog& dlg, const char* dlgProperty)
+	{
+		const wxString str = XRCCTRL(dlg, dlgProperty, wxTextCtrl)->GetValue();
+		configManager.SetValue(dlgProperty, str.ToStdString());
+		return str;
+	}
 };

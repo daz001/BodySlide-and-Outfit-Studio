@@ -1052,6 +1052,10 @@ public:
 	void PopupBrushSettings(wxWindow* popupAt = nullptr);
 	void UpdateBrushSettings();
 	void DeleteSliders(bool keepSliders = false, bool keepZaps = false);
+	int CopyBoneWeightForShapes(std::vector<nifly::NiShape*> shapes, bool silent = false);
+	int ConformShapes(std::vector<nifly::NiShape*> shapes, bool silent = false);
+	void SetBaseShape();
+	void UpdateTitle();
 
 	void CheckBrushBounds() {
 		TweakBrush* brush = glView->GetActiveBrush();
@@ -1202,13 +1206,8 @@ private:
 	void OnMoveWindowEnd(wxMoveEvent& event);
 	void OnSetSize(wxSizeEvent& event);
 
-	void UpdateTitle();
-
 	void AddProjectHistory(const std::string& fileName, const std::string& projectName);
 	void UpdateProjectHistory();
-
-	int LoadReferenceTemplate(const wxString& refTemplate, bool keepZapSliders);
-	bool AlertProgressError(int error, const wxString& title, const wxString& message);
 
 	void OnNewProject(wxCommandEvent& event);
 	void OnLoadProject(wxCommandEvent &event);
@@ -1249,7 +1248,6 @@ private:
 	void OnSSSGenWeightsFalse(wxCommandEvent& event);
 	void OnSaveSliderSet(wxCommandEvent &event);
 	void OnSaveSliderSetAs(wxCommandEvent &event);
-	void SetBaseShape();
 
 	void OnSlider(wxCommandEvent& event);
 	void OnClickSliderButton(wxCommandEvent &event);
@@ -1331,7 +1329,6 @@ private:
 	void OnLoadPreset(wxCommandEvent& event);
 	void OnSavePreset(wxCommandEvent& event);
 	bool ShowConform(ConformOptions& options, bool silent = false);
-	int ConformShapes(std::vector<nifly::NiShape*> shapes, bool silent = false);
 	void ConformSliders(nifly::NiShape* shape, const ConformOptions& options);
 	void OnSliderConform(wxCommandEvent& event);
 	void OnSliderConformAll(wxCommandEvent& event);
@@ -1393,7 +1390,6 @@ private:
 	void OnDeleteUnreferencedNodes(wxCommandEvent& event);
 	void OnRemoveSkinning(wxCommandEvent& event);
 	void OnShapeProperties(wxCommandEvent& event);
-	int CopyBoneWeightForShapes(std::vector<nifly::NiShape*> shapes, bool silent = false);
 	
 	void OnMaskLess(wxCommandEvent& event);
 	void OnMaskMore(wxCommandEvent& event);
