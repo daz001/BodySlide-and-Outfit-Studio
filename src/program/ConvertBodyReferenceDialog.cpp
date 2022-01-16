@@ -102,7 +102,7 @@ void ConvertBodyReferenceDialog::ConvertBodyReference() const
 		outfitStudio->UpdateTitle();
 	}
 
-	outfitStudio->DeleteSliders(keepZapSliders); // we need to do this first so we can clear any broken sliders
+	outfitStudio->DeleteSliders(false, true); // we need to do this first so we can clear any broken sliders
 	project->ResetTransforms();
 
 	auto originalShapes = project->GetWorkNif()->GetShapes(); // get outfit shapes
@@ -154,7 +154,7 @@ void ConvertBodyReferenceDialog::ConvertBodyReference() const
 		outfitStudio->UpdateProgress(40, _("Setting the base shape and removing the conversion reference"));
 		outfitStudio->SetBaseShape();
 		project->DeleteShape(project->GetBaseShape());
-		outfitStudio->DeleteSliders(true);
+		outfitStudio->DeleteSliders(false, keepZapSliders);
 		project->GetWorkAnim()->Clear();
 	}
 	else {
