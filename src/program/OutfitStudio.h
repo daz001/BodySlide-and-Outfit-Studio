@@ -1123,10 +1123,14 @@ public:
 		if (progressStack.empty())
 			return;
 
-		do {
+		if(forceEmpty) {
+			progressBar->SetValue(progressStack.front().second);
+			progressStack.clear();
+		}
+		else {
 			progressBar->SetValue(progressStack.back().second);
 			progressStack.pop_back();
-		} while(forceEmpty && !progressStack.empty());
+		}
 		
 		if (progressStack.empty()) {
 			if (msg.IsEmpty())
