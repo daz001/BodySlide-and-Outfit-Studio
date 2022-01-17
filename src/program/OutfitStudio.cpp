@@ -3011,6 +3011,9 @@ void OutfitStudioFrame::SelectTool(ToolID tool) {
 		menuBar->Check(XRCID("btnColorBrush"), true);
 		toolBarH->ToggleTool(XRCID("btnColorBrush"), true);
 
+		FindWindowById(XRCID("colorPalette"), colorSettings)->Show();
+		FindWindowById(XRCID("clampMaxValue"), colorSettings)->Hide();
+		colorSettings->Layout();
 		wxButton* btnSwapBrush = (wxButton*)FindWindowById(XRCID("btnSwapBrush"), colorSettings);
 		btnSwapBrush->SetLabel(_("Edit Alpha"));
 	}
@@ -3018,6 +3021,9 @@ void OutfitStudioFrame::SelectTool(ToolID tool) {
 		menuBar->Check(XRCID("btnAlphaBrush"), true);
 		toolBarH->ToggleTool(XRCID("btnAlphaBrush"), true);
 
+		FindWindowById(XRCID("colorPalette"), colorSettings)->Hide();
+		FindWindowById(XRCID("clampMaxValue"), colorSettings)->Show();
+		colorSettings->Layout();
 		wxButton* btnSwapBrush = (wxButton*)FindWindowById(XRCID("btnSwapBrush"), colorSettings);
 		btnSwapBrush->SetLabel(_("Edit Color"));
 	}
