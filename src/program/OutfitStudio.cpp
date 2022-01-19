@@ -665,9 +665,6 @@ bool OutfitStudio::ShowSetup() {
 		return false;
 	}
 
-	if(frame)
-		frame->CloseBrushSettings();
-
 	wxDialog* setup = xrc->LoadDialog(nullptr, "dlgSetup");
 	if (setup) {
 		setup->SetSize(wxSize(700, -1));
@@ -1782,6 +1779,9 @@ void OutfitStudioFrame::SettingsFillDataFiles(wxCheckListBox* dataFileList, wxSt
 }
 
 void OutfitStudioFrame::OnSettings(wxCommandEvent& WXUNUSED(event)) {
+
+	CloseBrushSettings();
+
 	wxDialog* settings = wxXmlResource::Get()->LoadDialog(this, "dlgSettings");
 	if (settings) {
 		settings->SetSize(wxSize(525, -1));
