@@ -32,8 +32,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <wx/zipstrm.h>
 #include <sstream>
 
-#include "ConvertBodyReferenceDialog.h"
-
 using namespace nifly;
 
 // ----------------------------------------------------------------------------
@@ -51,7 +49,6 @@ wxBEGIN_EVENT_TABLE(OutfitStudioFrame, wxFrame)
 	EVT_MENU(XRCID("btnLoadProject"), OutfitStudioFrame::OnLoadProject)
 	EVT_MENU(XRCID("btnAddProject"), OutfitStudioFrame::OnAddProject)
 	EVT_MENU(XRCID("fileLoadRef"), OutfitStudioFrame::OnLoadReference)
-	EVT_MENU(XRCID("fileConvBodyRef"), OutfitStudioFrame::OnConvertBodyReference)
 	EVT_MENU(XRCID("fileLoadOutfit"), OutfitStudioFrame::OnLoadOutfit)
 	EVT_MENU(XRCID("fileSave"), OutfitStudioFrame::OnSaveSliderSet)
 	EVT_MENU(XRCID("fileSaveAs"), OutfitStudioFrame::OnSaveSliderSetAs)
@@ -1807,6 +1804,9 @@ void OutfitStudioFrame::OnSettings(wxCommandEvent& WXUNUSED(event)) {
 		wxString projectPath = wxString::FromUTF8(Config["ProjectPath"]);
 		dpProjectPath->SetPath(projectPath);
 
+		wxCheckBox* cbShowForceBodyNormals = XRCCTRL(*settings, "cbShowForceBodyNormals", wxCheckBox);
+		cbShowForceBodyNormals->SetValue(Config.GetBoolValue("ShowForceBodyNormals"));
+
 		wxCheckBox* cbBBOverrideWarn = XRCCTRL(*settings, "cbBBOverrideWarn", wxCheckBox);
 		cbBBOverrideWarn->SetValue(Config.GetBoolValue("WarnBatchBuildOverride"));
 
@@ -1880,6 +1880,7 @@ void OutfitStudioFrame::OnSettings(wxCommandEvent& WXUNUSED(event)) {
 			selectedfiles = selectedfiles.BeforeLast(';');
 			Config.SetValue("GameDataFiles/" + TargetGames[targ].ToStdString(), selectedfiles.ToUTF8().data());
 
+			Config.SetBoolValue("ShowForceBodyNormals", cbShowForceBodyNormals->IsChecked());
 			Config.SetBoolValue("WarnBatchBuildOverride", cbBBOverrideWarn->IsChecked());
 			Config.SetBoolValue("BSATextureScan", cbBSATextures->IsChecked());
 			Config.SetBoolValue("Input/LeftMousePan", cbLeftMousePan->IsChecked());
@@ -1908,6 +1909,7 @@ void OutfitStudioFrame::OnSettings(wxCommandEvent& WXUNUSED(event)) {
 
 			Config.SaveConfig(Config["AppDir"] + "/Config.xml");
 			wxGetApp().InitArchives();
+
 		}
 
 		delete settings;
@@ -3499,29 +3501,6 @@ void OutfitStudioFrame::OnLoadReference(wxCommandEvent& WXUNUSED(event)) {
 	EndProgress();
 }
 
-void OutfitStudioFrame::OnConvertBodyReference(wxCommandEvent& WXUNUSED(event)) {
-	
-	if (!project->GetWorkNif()->IsValid()) {
-		wxMessageBox(_("There are no valid shapes loaded!"), _("Error"));
-		return;
-	}
-	
-	if (bEditSlider) {
-		wxMessageBox(_("You're currently editing slider data, please exit the slider's edit mode (pencil button) and try again."));
-		return;
-	}
-
-	UpdateReferenceTemplates();
-
-	ConvertBodyReferenceDialog dlg(this, project, OutfitStudioConfig, refTemplates);
-	int result = dlg.ShowModal();
-	if (result == wxID_CANCEL)
-		return;
-
-	dlg.ConvertBodyReference();
-}
-
-
 void OutfitStudioFrame::OnLoadOutfit(wxCommandEvent& WXUNUSED(event)) {
 	wxDialog dlg;
 	int result = wxID_CANCEL;
@@ -4043,10 +4022,6 @@ void OutfitStudioFrame::OnSaveSliderSetAs(wxCommandEvent& WXUNUSED(event)) {
 
 void OutfitStudioFrame::OnSetBaseShape(wxCommandEvent& WXUNUSED(event)) {
 	wxLogMessage("Setting new base shape.");
-	SetBaseShape();
-}
-
-void OutfitStudioFrame::SetBaseShape() {
 	project->ClearBoneScale();
 
 	for (auto &s : project->GetWorkNif()->GetShapes())
@@ -6730,7 +6705,7 @@ void OutfitStudioFrame::OnBrushColorChanged(wxColourPickerEvent& event) {
 	glView->SetColorBrush(brushColor);
 }
 
-void OutfitStudioFrame::OnColorClampMaxValueSlider(wxCommandEvent& event) {
+void OutfitStudioFrame::OnColorClampMaxValueSlider(wxCommandEvent& WXUNUSED(event)) {
 	wxSlider* slider = (wxSlider*)colorSettings->FindWindowByName("cpClampMaxValueSlider");
 	wxTextCtrl* txtControl = (wxTextCtrl*)colorSettings->FindWindowByName("cpClampMaxValueTxt");
 	int clampMaxValue = slider->GetValue();
@@ -6741,7 +6716,7 @@ void OutfitStudioFrame::OnColorClampMaxValueSlider(wxCommandEvent& event) {
 		clampBrush->clampMaxValue = clampMaxValue / 255.0f;
 }
 
-void OutfitStudioFrame::OnColorClampMaxValueChanged(wxCommandEvent& event) {
+void OutfitStudioFrame::OnColorClampMaxValueChanged(wxCommandEvent& WXUNUSED(event)) {
 	wxTextCtrl* txtControl = (wxTextCtrl*)colorSettings->FindWindowByName("cpClampMaxValueTxt");
 	wxSlider* slider = (wxSlider*)colorSettings->FindWindowByName("cpClampMaxValueSlider");
 	int clampMaxValue = std::clamp(atoi(txtControl->GetValue().c_str()),0,255);
@@ -7757,29 +7732,43 @@ void OutfitStudioFrame::OnSliderConform(wxCommandEvent& WXUNUSED(event)) {
 	if (!project->GetBaseShape())
 		return;
 
-	std::vector<NiShape*> shapes;
-	for (auto &i : selectedItems)
-		shapes.push_back(i->GetShape());
-	
-	ConformShapes(shapes);
+	ConformOptions options;
+	if (ShowConform(options)) {
+		wxLogMessage("Conforming...");
+		ZeroSliders();
+
+		StartProgress(_("Initializing data..."));
+		project->InitConform();
+
+		for (auto &i : selectedItems)
+			ConformSliders(i->GetShape(), options);
+
+		project->morpher.ClearProximityCache();
+		project->morpher.UnlinkRefDiffData();
+
+		if (statusBar)
+			statusBar->SetStatusText(_("Shape(s) conformed."));
+
+		SetPendingChanges();
+
+		wxLogMessage("%zu shape(s) conformed.", selectedItems.size());
+		UpdateProgress(100, _("Finished"));
+		EndProgress();
+	}
 }
 
 void OutfitStudioFrame::OnSliderConformAll(wxCommandEvent& WXUNUSED(event)) {
 	if (!project->GetBaseShape())
 		return;
-	
-	auto shapes = project->GetWorkNif()->GetShapes();
-	ConformShapes(shapes);
-}
 
-int OutfitStudioFrame::ConformShapes(std::vector<NiShape*> shapes, bool silent) {
-	
 	ConformOptions options;
-	if (ShowConform(options, silent)) {
-		wxLogMessage("Conforming shapes...");
+	if (ShowConform(options)) {
+		wxLogMessage("Conforming all shapes...");
 		ZeroSliders();
 
-		StartProgress(_("Conforming shapes..."));
+		auto shapes = project->GetWorkNif()->GetShapes();
+
+		StartProgress(_("Conforming all shapes..."));
 		project->InitConform();
 
 		int inc = 100 / shapes.size() - 1;
@@ -7804,13 +7793,10 @@ int OutfitStudioFrame::ConformShapes(std::vector<NiShape*> shapes, bool silent) 
 		wxLogMessage("All shapes conformed.");
 		UpdateProgress(100, _("Finished"));
 		EndProgress();
-		
-		return 0;
 	}
-	return 1;
 }
 
-bool OutfitStudioFrame::ShowConform(ConformOptions& options, bool silent) {
+bool OutfitStudioFrame::ShowConform(ConformOptions& options) {
 	CloseBrushSettings();
 
 	wxDialog dlg;
@@ -7875,7 +7861,7 @@ bool OutfitStudioFrame::ShowConform(ConformOptions& options, bool silent) {
 
 		dlg.Bind(wxEVT_CHAR_HOOK, &OutfitStudioFrame::OnEnterClose, this);
 
-		if (silent || dlg.ShowModal() == wxID_OK) {
+		if (dlg.ShowModal() == wxID_OK) {
 			options.proximityRadius = atof(XRCCTRL(dlg, "proximityRadiusText", wxTextCtrl)->GetValue().c_str());
 
 			bool noTargetLimit = XRCCTRL(dlg, "noTargetLimit", wxCheckBox)->IsChecked();
@@ -9053,7 +9039,7 @@ bool OutfitStudioFrame::HasUnweightedCheck() {
 	return false;
 }
 
-bool OutfitStudioFrame::ShowWeightCopy(WeightCopyOptions& options, bool silent) {
+bool OutfitStudioFrame::ShowWeightCopy(WeightCopyOptions& options) {
 	CloseBrushSettings();
 
 	wxDialog dlg;
@@ -9098,7 +9084,7 @@ bool OutfitStudioFrame::ShowWeightCopy(WeightCopyOptions& options, bool silent) 
 
 		dlg.SetSize(dlg.GetBestSize());
 		
-		if (silent || dlg.ShowModal() == wxID_OK) {
+		if (dlg.ShowModal() == wxID_OK) {
 			options.proximityRadius = atof(XRCCTRL(dlg, "proximityRadiusText", wxTextCtrl)->GetValue().c_str());
 
 			bool noTargetLimit = XRCCTRL(dlg, "noTargetLimit", wxCheckBox)->IsChecked();
@@ -9224,23 +9210,11 @@ void OutfitStudioFrame::OnCopyBoneWeight(wxCommandEvent& WXUNUSED(event)) {
 		return;
 	}
 
-	std::vector<NiShape*> selectedShapes;
-	for(auto &s : selectedItems) {
-		if (auto shape = s->GetShape(); !project->IsBaseShape(shape))
-			selectedShapes.push_back(s->GetShape());
-		else
-			wxMessageBox(_("Sorry, you can't copy weights from the reference shape to itself. Skipping this shape."), _("Can't copy weights"), wxICON_WARNING);
-	}
-	CopyBoneWeightForShapes(selectedShapes);
-}
-
-int OutfitStudioFrame::CopyBoneWeightForShapes(std::vector<NiShape*> shapes, bool silent) {
-
 	WeightCopyOptions options;
 	CalcCopySkinTransOption(options);
 	AnimInfo &workAnim = *project->GetWorkAnim();
 
-	if (ShowWeightCopy(options, silent)) {
+	if (ShowWeightCopy(options)) {
 		StartProgress(_("Copying bone weights..."));
 
 		UndoStateProject *usp = glView->GetUndoHistory()->PushState();
@@ -9249,42 +9223,40 @@ int OutfitStudioFrame::CopyBoneWeightForShapes(std::vector<NiShape*> shapes, boo
 		std::vector<std::string> baseBones = workAnim.shapeBones[project->GetBaseShape()->name.get()];
 		std::sort(baseBones.begin(), baseBones.end());
 		std::unordered_map<uint16_t, float> mask;
+		for (size_t i = 0; i < selectedItems.size(); i++) {
+			NiShape *shape = selectedItems[i]->GetShape();
+			if (!project->IsBaseShape(shape)) {
+				wxLogMessage("Copying bone weights to '%s'...", shape->name.get());
 
-		const int inc = 100 / shapes.size() - 1;
-		
-		for (size_t i = 0; i < shapes.size(); i++) {
-			NiShape *shape = shapes[i];
-			wxLogMessage("Copying bone weights to '%s'...", shape->name.get());
-			StartSubProgress(i * inc, i * inc + inc);
-			
-			if (options.doSkinTransCopy) {
-				const MatTransform &baseXformGlobalToSkin = workAnim.shapeSkinning[project->GetBaseShape()->name.get()].xformGlobalToSkin;
-				const MatTransform &oldXformGlobalToSkin = workAnim.shapeSkinning[shape->name.get()].xformGlobalToSkin;
+				if (options.doSkinTransCopy) {
+					const MatTransform &baseXformGlobalToSkin = workAnim.shapeSkinning[project->GetBaseShape()->name.get()].xformGlobalToSkin;
+					const MatTransform &oldXformGlobalToSkin = workAnim.shapeSkinning[shape->name.get()].xformGlobalToSkin;
 
-				if (options.doTransformGeo && !baseXformGlobalToSkin.IsNearlyEqualTo(oldXformGlobalToSkin))
-					project->ApplyTransformToShapeGeometry(shape, baseXformGlobalToSkin.ComposeTransforms(oldXformGlobalToSkin.InverseTransform()));
+					if (options.doTransformGeo && !baseXformGlobalToSkin.IsNearlyEqualTo(oldXformGlobalToSkin))
+						project->ApplyTransformToShapeGeometry(shape, baseXformGlobalToSkin.ComposeTransforms(oldXformGlobalToSkin.InverseTransform()));
 
-				workAnim.ChangeGlobalToSkinTransform(shape->name.get(), baseXformGlobalToSkin);
-				project->GetWorkNif()->SetShapeTransformGlobalToSkin(shape, baseXformGlobalToSkin);
+					workAnim.ChangeGlobalToSkinTransform(shape->name.get(), baseXformGlobalToSkin);
+					project->GetWorkNif()->SetShapeTransformGlobalToSkin(shape, baseXformGlobalToSkin);
+				}
+
+				usp->usss.resize(usp->usss.size() + 1);
+				usp->usss.back().shapeName = shape->name.get();
+
+				mask.clear();
+				glView->GetShapeMask(mask, shape->name.get());
+
+				std::vector<std::string> bones = workAnim.shapeBones[shape->name.get()];
+				std::vector<std::string> mergedBones = baseBones;
+
+				for (auto b : bones)
+					if (!std::binary_search(baseBones.begin(), baseBones.end(), b))
+						mergedBones.push_back(b);
+
+				std::vector<std::string> lockedBones;
+				project->CopyBoneWeights(shape, options.proximityRadius, options.maxResults, mask, mergedBones, baseBones.size(), lockedBones, usp->usss.back(), false);
 			}
-
-			usp->usss.resize(usp->usss.size() + 1);
-			usp->usss.back().shapeName = shape->name.get();
-
-			mask.clear();
-			glView->GetShapeMask(mask, shape->name.get());
-
-			std::vector<std::string> bones = workAnim.shapeBones[shape->name.get()];
-			std::vector<std::string> mergedBones = baseBones;
-
-			for (auto b : bones)
-				if (!std::binary_search(baseBones.begin(), baseBones.end(), b))
-					mergedBones.push_back(b);
-
-			std::vector<std::string> lockedBones;
-
-			project->CopyBoneWeights(shape, options.proximityRadius, options.maxResults, mask, mergedBones, baseBones.size(), lockedBones, usp->usss.back(), false);
-			EndProgress();
+			else
+				wxMessageBox(_("Sorry, you can't copy weights from the reference shape to itself. Skipping this shape."), _("Can't copy weights"), wxICON_WARNING);
 		}
 
 		if (options.doSkinTransCopy || options.doTransformGeo)
@@ -9301,7 +9273,6 @@ int OutfitStudioFrame::CopyBoneWeightForShapes(std::vector<NiShape*> shapes, boo
 
 	workAnim.CleanupBones();
 	UpdateAnimationGUI();
-	return 0;
 }
 
 void OutfitStudioFrame::OnCopySelectedWeight(wxCommandEvent& WXUNUSED(event)) {

@@ -526,7 +526,7 @@
 																						<object class="wxSlider" name="cpClampMaxValueSlider">
 																							<style>wxSL_INVERSE</style>
 																							<size>-1,25</size>
-																							<value translate="0">255</value>
+																							<value translate="0">0</value>
 																							<min>0</min>
 																							<max>255</max>
 																						</object>
@@ -538,7 +538,7 @@
 																						<object class="wxTextCtrl" name="cpClampMaxValueTxt">
 																							<style>wxTE_CENTRE</style>
 																							<size>50,-1</size>
-																							<value translate="0">255</value>
+																							<value translate="0">0</value>
 																							<maxlength>25</maxlength>
 																						</object>
 																					</object>
@@ -1622,11 +1622,6 @@
 			<object class="wxMenuItem" name="fileLoadOutfit">
 				<label>Load Outfit...</label>
 				<help>Load a NIF file as the working outfit, replacing any current outfit objects.</help>
-			</object>
-			<object class="separator" />
-			<object class="wxMenuItem" name="fileConvBodyRef">
-				<label>Convert Body Reference...\tCtrl+Shift+R</label>
-				<help>Convert an outfits body reference to use a different reference</help>
 			</object>
 			<object class="separator" />
 			<object class="wxMenuItem" name="fileSave">
