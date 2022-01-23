@@ -8,6 +8,7 @@ See the included LICENSE file
 #include "Object3d.hpp"
 
 #include <map>
+#include <string>
 #include <unordered_map>
 
 struct UndoStateVertexSliderDiff;
@@ -49,7 +50,7 @@ public:
 	void UpdateDiff(const std::string& name, const std::string& target, uint16_t index, nifly::Vector3& newdiff);
 	void SumDiff(const std::string& name, const std::string& target, uint16_t index, nifly::Vector3& newdiff);
 	void ScaleDiff(const std::string& name, const std::string& target, float scalevalue);
-	void OffsetDiff(const std::string& name, const std::string& target, nifly::Vector3 &offset);
+	void OffsetDiff(const std::string& name, const std::string& target, nifly::Vector3& offset);
 	bool ApplyDiff(const std::string& set, const std::string& target, float percent, std::vector<nifly::Vector3>* inOutResult);
 	bool ApplyUVDiff(const std::string& set, const std::string& target, float percent, std::vector<nifly::Vector2>* inOutResult);
 	bool ApplyClamp(const std::string& set, const std::string& target, std::vector<nifly::Vector3>* inOutResult);
@@ -70,7 +71,7 @@ public:
 
 
 	void ZeroVertDiff(const std::string& set, int vertCount, float* vColorMask) {
-		for (auto &ns : namedSet[set]) {
+		for (auto& ns : namedSet[set]) {
 			if (ns.first < vertCount) {
 				float f = vColorMask[ns.first];
 				if (f == 1.0f)
@@ -96,11 +97,11 @@ public:
 			v = (*vertSet);
 		}
 		else {
-			for (auto &diff : namedSet[set])
+			for (auto& diff : namedSet[set])
 				v.push_back(diff.first);
 		}
 
-		for (auto &i : v) {
+		for (auto& i : v) {
 			auto d = namedSet[set].find(i);
 			if (d == namedSet[set].end())
 				continue;
