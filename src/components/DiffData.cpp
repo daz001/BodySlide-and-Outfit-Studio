@@ -30,7 +30,7 @@ OSDataFile::~OSDataFile() {}
 
 #pragma pack(push, 1)
 struct DiffStruct {
-	uint16_t index;
+	uint16_t index = 0;
 	Vector3 diff;
 };
 #pragma pack(pop)
@@ -100,11 +100,15 @@ bool OSDataFile::Write(const std::string& fileName) {
 		std::vector<DiffStruct> diffData(diffSize);
 		diffData.resize(diffSize);
 
+		size_t i = 0;
+
 		for (auto& diff : diffs.second) {
-			if (diff.first < diffSize) {
-				diffData[diff.first].index = diff.first;
-				diffData[diff.first].diff = diff.second;
-			}
+			if (i >= diffSize)
+				break;
+
+			diffData[i].index = diff.first;
+			diffData[i].diff = diff.second;
+			++i;
 		}
 
 		file.write((char*)&diffSize, 2);

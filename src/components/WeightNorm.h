@@ -30,10 +30,10 @@ a source of input, containing the results of previous changes.
 */
 class BoneWeightAutoNormalizer {
 	static constexpr double WEIGHT_EPSILON = .001;
-	UndoStateShape* uss;
+	UndoStateShape* uss = nullptr;
 	std::vector<std::unordered_map<uint16_t, float>*> wPtrs, lWPtrs;
-	uint32_t nMBones;
-	bool bSpreadWeight;
+	uint32_t nMBones = 0;
+	bool bSpreadWeight = false;
 
 public:
 	/* SetUp: fills in the class's private data.  ussi->boneWeights

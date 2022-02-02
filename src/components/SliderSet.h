@@ -69,7 +69,6 @@ public:
 	void WriteSliderSet(XMLElement* sliderSetElement);
 
 	void DeleteSlider(const std::string& setName);
-	void DeleteShapeAttribute(const std::string& shapeName);
 
 	std::string GetName() { return name; }
 
@@ -144,6 +143,16 @@ public:
 					outDataNames.push_back(df.dataName);
 
 		return outDataNames;
+	}
+
+	std::string SliderFromDataName(const std::string& targetName, const std::string& dataName) {
+		for (auto& s : sliders) {
+			for (auto& df : s.dataFiles) {
+				if (df.targetName == targetName && df.dataName == dataName)
+					return s.name;
+			}
+		}
+		return "";
 	}
 
 	std::string TargetToShape(const std::string& targetName) {

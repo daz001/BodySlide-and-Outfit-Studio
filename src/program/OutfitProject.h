@@ -160,6 +160,7 @@ public:
 	void ConformShape(nifly::NiShape* shape, const ConformOptions& options = ConformOptions());
 
 	const std::string& ShapeToTarget(const std::string& shapeName);
+	const std::string& TargetToShape(const std::string& targetName);
 	int GetVertexCount(nifly::NiShape* shape);
 	void GetLiveVerts(nifly::NiShape* shape, std::vector<nifly::Vector3>& outVerts, std::vector<nifly::Vector2>* outUVs = nullptr);
 	void GetSliderDiff(nifly::NiShape* shape, const std::string& sliderName, std::vector<nifly::Vector3>& outVerts);
@@ -237,7 +238,7 @@ public:
 
 	bool PrepareCollapseVertex(nifly::NiShape* shape, UndoStateShape& uss, const std::vector<uint16_t>& indices);
 	bool PrepareFlipEdge(nifly::NiShape* shape, UndoStateShape& uss, const nifly::Edge& edge);
-	bool PrepareSplitEdge(nifly::NiShape* shape, UndoStateShape& uss, const std::vector<uint16_t>& p1s, const std::vector<uint16_t>& p2s);
+	bool PrepareRefineMesh(nifly::NiShape* shape, UndoStateShape& uss, std::vector<bool>& pincs, const std::unordered_map<int, std::vector<int>>& weldVerts);
 
 	void CheckMerge(const std::string& sourceName, const std::string& targetName, MergeCheckErrors& e);
 	void PrepareCopyGeo(nifly::NiShape* source, nifly::NiShape* target, UndoStateShape& uss);

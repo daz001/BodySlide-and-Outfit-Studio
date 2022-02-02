@@ -26,6 +26,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "GroupManager.h"
 #include "PresetSaveDialog.h"
 #include "ShapeProperties.h"
+#include "SliderDataImportDialog.h"
 
 #include <sstream>
 #include <wx/debugrpt.h>
@@ -209,6 +210,7 @@ wxBEGIN_EVENT_TABLE(OutfitStudioFrame, wxFrame)
 	EVT_MENU(XRCID("separateVerts"), OutfitStudioFrame::OnSeparateVerts)
 	EVT_MENU(XRCID("copyGeo"), OutfitStudioFrame::OnCopyGeo)
 	EVT_MENU(XRCID("copyShape"), OutfitStudioFrame::OnDupeShape)
+	EVT_MENU(XRCID("refineMesh"), OutfitStudioFrame::OnRefineMesh)
 	EVT_MENU(XRCID("deleteShape"), OutfitStudioFrame::OnDeleteShape)
 	EVT_MENU(XRCID("addBone"), OutfitStudioFrame::OnAddBone)
 	EVT_MENU(XRCID("addCustomBone"), OutfitStudioFrame::OnAddCustomBone)
@@ -304,14 +306,15 @@ wxIMPLEMENT_APP(OutfitStudio);
 ConfigurationManager Config;
 ConfigurationManager OutfitStudioConfig;
 
-const wxString TargetGames[] = {"Fallout3", "FalloutNewVegas", "Skyrim", "Fallout4", "SkyrimSpecialEdition", "Fallout4VR", "SkyrimVR", "Fallout 76", "Oblivion"};
-const wxLanguage SupportedLangs[] = {wxLANGUAGE_ENGLISH,	wxLANGUAGE_AFRIKAANS,  wxLANGUAGE_ARABIC,	  wxLANGUAGE_CATALAN,		   wxLANGUAGE_CZECH,	 wxLANGUAGE_DANISH,
-									 wxLANGUAGE_GERMAN,		wxLANGUAGE_GREEK,	   wxLANGUAGE_SPANISH,	  wxLANGUAGE_BASQUE,		   wxLANGUAGE_FINNISH,	 wxLANGUAGE_FRENCH,
-									 wxLANGUAGE_HINDI,		wxLANGUAGE_HUNGARIAN,  wxLANGUAGE_INDONESIAN, wxLANGUAGE_ITALIAN,		   wxLANGUAGE_JAPANESE,	 wxLANGUAGE_KOREAN,
-									 wxLANGUAGE_LITHUANIAN, wxLANGUAGE_LATVIAN,	   wxLANGUAGE_MALAY,	  wxLANGUAGE_NORWEGIAN_BOKMAL, wxLANGUAGE_NEPALI,	 wxLANGUAGE_DUTCH,
-									 wxLANGUAGE_POLISH,		wxLANGUAGE_PORTUGUESE, wxLANGUAGE_ROMANIAN,	  wxLANGUAGE_RUSSIAN,		   wxLANGUAGE_SLOVAK,	 wxLANGUAGE_SLOVENIAN,
-									 wxLANGUAGE_ALBANIAN,	wxLANGUAGE_SWEDISH,	   wxLANGUAGE_TAMIL,	  wxLANGUAGE_TURKISH,		   wxLANGUAGE_UKRAINIAN, wxLANGUAGE_VIETNAMESE,
-									 wxLANGUAGE_CHINESE};
+const std::array<wxString, 9> TargetGames = {"Fallout3", "FalloutNewVegas", "Skyrim", "Fallout4", "SkyrimSpecialEdition", "Fallout4VR", "SkyrimVR", "Fallout 76", "Oblivion"};
+const std::array<wxLanguage, 37> SupportedLangs = {wxLANGUAGE_ENGLISH,	  wxLANGUAGE_AFRIKAANS,		   wxLANGUAGE_ARABIC,  wxLANGUAGE_CATALAN,	  wxLANGUAGE_CZECH,
+												   wxLANGUAGE_DANISH,	  wxLANGUAGE_GERMAN,		   wxLANGUAGE_GREEK,   wxLANGUAGE_SPANISH,	  wxLANGUAGE_BASQUE,
+												   wxLANGUAGE_FINNISH,	  wxLANGUAGE_FRENCH,		   wxLANGUAGE_HINDI,   wxLANGUAGE_HUNGARIAN,  wxLANGUAGE_INDONESIAN,
+												   wxLANGUAGE_ITALIAN,	  wxLANGUAGE_JAPANESE,		   wxLANGUAGE_KOREAN,  wxLANGUAGE_LITHUANIAN, wxLANGUAGE_LATVIAN,
+												   wxLANGUAGE_MALAY,	  wxLANGUAGE_NORWEGIAN_BOKMAL, wxLANGUAGE_NEPALI,  wxLANGUAGE_DUTCH,	  wxLANGUAGE_POLISH,
+												   wxLANGUAGE_PORTUGUESE, wxLANGUAGE_ROMANIAN,		   wxLANGUAGE_RUSSIAN, wxLANGUAGE_SLOVAK,	  wxLANGUAGE_SLOVENIAN,
+												   wxLANGUAGE_ALBANIAN,	  wxLANGUAGE_SWEDISH,		   wxLANGUAGE_TAMIL,   wxLANGUAGE_TURKISH,	  wxLANGUAGE_UKRAINIAN,
+												   wxLANGUAGE_VIETNAMESE, wxLANGUAGE_CHINESE};
 
 std::string GetProjectPath() {
 	std::string res = Config["ProjectPath"];
@@ -861,6 +864,8 @@ void OutfitStudio::InitLanguage() {
 		delete locale;
 
 	int lang = Config.GetIntValue("Language");
+	if (lang < 0)
+		lang = wxLANGUAGE_ENGLISH;
 
 	// Load language if possible, fall back to English otherwise
 	if (wxLocale::IsAvailable(lang)) {
@@ -947,11 +952,11 @@ OutfitStudioFrame::OutfitStudioFrame(const wxPoint& pos, const wxSize& size) {
 	xrc->Load(wxString::FromUTF8(Config["AppDir"]) + "/res/xrc/Skeleton.xrc");
 	xrc->Load(wxString::FromUTF8(Config["AppDir"]) + "/res/xrc/Settings.xrc");
 
-	int statusWidths[] = {-1, 400, 100};
+	const std::array<int, 3> statusWidths = {-1, 400, 100};
 	statusBar = (wxStatusBar*)FindWindowByName("statusBar");
 	if (statusBar) {
 		statusBar->SetFieldsCount(3);
-		statusBar->SetStatusWidths(3, statusWidths);
+		statusBar->SetStatusWidths(3, statusWidths.data());
 		statusBar->SetStatusText(_("Ready!"));
 	}
 
@@ -1125,8 +1130,6 @@ OutfitStudioFrame::OutfitStudioFrame(const wxPoint& pos, const wxSize& size) {
 	project = new OutfitProject(this); // Create empty project
 	CreateSetSliders();
 
-	bEditSlider = false;
-	activeItem = nullptr;
 	selectedItems.clear();
 
 	SetSize(size);
@@ -1203,7 +1206,7 @@ void OutfitStudioFrame::OnClose(wxCloseEvent& WXUNUSED(event)) {
 }
 
 bool OutfitStudioFrame::CopyStreamData(wxInputStream& inputStream, wxOutputStream& outputStream, wxFileOffset size) {
-	wxChar buf[128 * 1024];
+	auto buf = std::make_unique<wxChar[]>(128 * 1024);
 	int readSize = 128 * 1024;
 	wxFileOffset copiedData = 0;
 
@@ -1211,10 +1214,10 @@ bool OutfitStudioFrame::CopyStreamData(wxInputStream& inputStream, wxOutputStrea
 		if (size != -1 && copiedData + readSize > size)
 			readSize = size - copiedData;
 
-		inputStream.Read(buf, readSize);
+		inputStream.Read(buf.get(), readSize);
 
 		size_t actuallyRead = inputStream.LastRead();
-		outputStream.Write(buf, actuallyRead);
+		outputStream.Write(buf.get(), actuallyRead);
 		if (outputStream.LastWrite() != actuallyRead) {
 			wxLogError("Failed to output data when copying stream.");
 			return false;
@@ -1821,7 +1824,7 @@ void OutfitStudioFrame::OnSettings(wxCommandEvent& WXUNUSED(event)) {
 		cbBrushSettingsNearCursor->SetValue(Config.GetBoolValue("Input/BrushSettingsNearCursor"));
 
 		wxChoice* choiceLanguage = XRCCTRL(*settings, "choiceLanguage", wxChoice);
-		for (int i = 0; i < std::extent<decltype(SupportedLangs)>::value; i++)
+		for (int i = 0; i < SupportedLangs.size(); i++)
 			choiceLanguage->AppendString(wxLocale::GetLanguageName(SupportedLangs[i]));
 
 		if (!choiceLanguage->SetStringSelection(wxLocale::GetLanguageName(Config.GetIntValue("Language"))))
@@ -2696,7 +2699,7 @@ void OutfitStudioFrame::ActiveShapesUpdated(UndoStateProject* usp, bool bIsUndo)
 		}
 	}
 	else {
-		if (usp->undoType == UT_WEIGHT) {
+		if (usp->undoType == UndoType::Weight) {
 			for (auto& uss : usp->usss) {
 				mesh* m = glView->GetMesh(uss.shapeName);
 				if (!m)
@@ -2725,7 +2728,7 @@ void OutfitStudioFrame::ActiveShapesUpdated(UndoStateProject* usp, bool bIsUndo)
 				}
 			}
 		}
-		else if (usp->undoType == UT_COLOR) {
+		else if (usp->undoType == UndoType::Color) {
 			for (auto& uss : usp->usss) {
 				mesh* m = glView->GetMesh(uss.shapeName);
 				if (!m)
@@ -2755,7 +2758,7 @@ void OutfitStudioFrame::ActiveShapesUpdated(UndoStateProject* usp, bool bIsUndo)
 				project->GetWorkNif()->SetColorsForShape(m->shapeName, vcolors);
 			}
 		}
-		else if (usp->undoType == UT_ALPHA) {
+		else if (usp->undoType == UndoType::Alpha) {
 			for (auto& uss : usp->usss) {
 				mesh* m = glView->GetMesh(uss.shapeName);
 				if (!m)
@@ -5758,7 +5761,7 @@ void OutfitStudioFrame::ApplyPartitions() {
 		PartitionItemData* partitionData = dynamic_cast<PartitionItemData*>(partitionTree->GetItemData(child));
 		if (partitionData) {
 			const int index = partitionData->index;
-			if (index >= partitionInfo.size()) {
+			if (index >= static_cast<int64_t>(partitionInfo.size())) {
 				partitionInfo.resize(index + 1);
 				delPartFlags.resize(index + 1, true);
 			}
@@ -5804,8 +5807,8 @@ void OutfitStudioFrame::CreatePartitionTree(NiShape* shape) {
 
 	NiVector<BSDismemberSkinInstance::PartitionInfo> partitionInfo;
 	if (project->GetWorkNif()->GetShapePartitions(shape, partitionInfo, triParts)) {
-		for (int i = 0; i < partitionInfo.size(); i++) {
-			partitionTree->AppendItem(partitionRoot, "Partition", -1, -1, new PartitionItemData(i, partitionInfo[i].partID));
+		for (uint32_t i = 0; i < partitionInfo.size(); i++) {
+			partitionTree->AppendItem(partitionRoot, "Partition", -1, -1, new PartitionItemData(static_cast<int>(i), partitionInfo[i].partID));
 		}
 	}
 
@@ -6049,8 +6052,8 @@ void OutfitStudioFrame::OnSelectTool(wxCommandEvent& event) {
 	if (meshTabButton->GetCheck() || lightsTabButton->GetCheck()) {
 		auto activeBrush = glView->GetActiveBrush();
 		if (activeBrush) {
-			int brushType = activeBrush->Type();
-			if (brushType == TBT_STANDARD || brushType == TBT_MASK || brushType == TBT_MOVE) {
+			TweakBrush::BrushType brushType = activeBrush->Type();
+			if (brushType == TweakBrush::BrushType::Standard || brushType == TweakBrush::BrushType::Mask || brushType == TweakBrush::BrushType::Move) {
 				glView->SetLastTool(glView->GetActiveTool());
 			}
 		}
@@ -6320,6 +6323,7 @@ void OutfitStudioFrame::OnTabButtonClick(wxCommandEvent& event) {
 		menuBar->Enable(XRCID("btnClearMask"), true);
 		menuBar->Enable(XRCID("btnInvertMask"), true);
 		menuBar->Enable(XRCID("deleteVerts"), true);
+		menuBar->Enable(XRCID("refineMesh"), true);
 
 		toolBarV->ToggleTool(XRCID("btnBrushCollision"), true);
 		toolBarV->EnableTool(XRCID("btnBrushCollision"), true);
@@ -6350,6 +6354,7 @@ void OutfitStudioFrame::OnTabButtonClick(wxCommandEvent& event) {
 		menuBar->Enable(XRCID("btnClearMask"), true);
 		menuBar->Enable(XRCID("btnInvertMask"), true);
 		menuBar->Enable(XRCID("deleteVerts"), true);
+		menuBar->Enable(XRCID("refineMesh"), true);
 
 		toolBarV->ToggleTool(XRCID("btnBrushCollision"), true);
 		toolBarV->EnableTool(XRCID("btnBrushCollision"), true);
@@ -6409,6 +6414,7 @@ void OutfitStudioFrame::OnTabButtonClick(wxCommandEvent& event) {
 		menuBar->Enable(XRCID("btnFlipEdgeTool"), true);
 		menuBar->Enable(XRCID("btnSplitEdgeTool"), true);
 		menuBar->Enable(XRCID("deleteVerts"), true);
+		menuBar->Enable(XRCID("refineMesh"), true);
 
 		toolBarH->ToggleTool(XRCID("btnInflateBrush"), true);
 		toolBarH->EnableTool(XRCID("btnWeightBrush"), false);
@@ -6509,6 +6515,7 @@ void OutfitStudioFrame::OnTabButtonClick(wxCommandEvent& event) {
 		menuBar->Enable(XRCID("btnFlipEdgeTool"), false);
 		menuBar->Enable(XRCID("btnSplitEdgeTool"), false);
 		menuBar->Enable(XRCID("deleteVerts"), false);
+		menuBar->Enable(XRCID("refineMesh"), false);
 
 		toolBarH->ToggleTool(XRCID("btnWeightBrush"), true);
 		toolBarH->EnableTool(XRCID("btnWeightBrush"), true);
@@ -6572,6 +6579,7 @@ void OutfitStudioFrame::OnTabButtonClick(wxCommandEvent& event) {
 		menuBar->Enable(XRCID("btnFlipEdgeTool"), false);
 		menuBar->Enable(XRCID("btnSplitEdgeTool"), false);
 		menuBar->Enable(XRCID("deleteVerts"), false);
+		menuBar->Enable(XRCID("refineMesh"), false);
 
 		toolBarH->ToggleTool(XRCID("btnColorBrush"), true);
 		toolBarH->EnableTool(XRCID("btnColorBrush"), true);
@@ -6651,6 +6659,7 @@ void OutfitStudioFrame::OnTabButtonClick(wxCommandEvent& event) {
 		menuBar->Enable(XRCID("btnFlipEdgeTool"), false);
 		menuBar->Enable(XRCID("btnSplitEdgeTool"), false);
 		menuBar->Enable(XRCID("deleteVerts"), false);
+		menuBar->Enable(XRCID("refineMesh"), false);
 
 		toolBarH->ToggleTool(XRCID("btnMaskBrush"), true);
 		toolBarV->ToggleTool(XRCID("btnBrushCollision"), false);
@@ -6720,6 +6729,7 @@ void OutfitStudioFrame::OnTabButtonClick(wxCommandEvent& event) {
 		menuBar->Enable(XRCID("btnFlipEdgeTool"), false);
 		menuBar->Enable(XRCID("btnSplitEdgeTool"), false);
 		menuBar->Enable(XRCID("deleteVerts"), false);
+		menuBar->Enable(XRCID("refineMesh"), false);
 
 		toolBarH->ToggleTool(XRCID("btnMaskBrush"), true);
 		toolBarV->ToggleTool(XRCID("btnBrushCollision"), false);
@@ -7085,11 +7095,6 @@ void OutfitStudioFrame::OnSliderImportOSD(wxCommandEvent& WXUNUSED(event)) {
 	if (fn.IsEmpty())
 		return;
 
-	wxMessageDialog dlg(this, _("This will delete all loaded sliders. Are you sure?"), _("OSD Import"), wxOK | wxCANCEL | wxICON_WARNING | wxCANCEL_DEFAULT);
-	dlg.SetOKCancelLabels(_("Import"), _("Cancel"));
-	if (dlg.ShowModal() != wxID_OK)
-		return;
-
 	wxLogMessage("Importing morphs from OSD file '%s'...", fn);
 
 	OSDataFile osd;
@@ -7099,52 +7104,103 @@ void OutfitStudioFrame::OnSliderImportOSD(wxCommandEvent& WXUNUSED(event)) {
 		return;
 	}
 
-	// Deleting sliders
-	sliderScroll->Freeze();
-	std::vector<std::string> erase;
-	for (auto& sliderPanel : sliderPanels) {
-		sliderPanel.second->slider->SetValue(0);
-		SetSliderValue(sliderPanel.first, 0);
-		ShowSliderEffect(sliderPanel.first, true);
-		sliderPanel.second->slider->SetFocus();
-		HideSliderPanel(sliderPanel.second);
-
-		erase.push_back(sliderPanel.first);
-		project->DeleteSlider(sliderPanel.first);
-	}
-
-	for (auto& e : erase)
-		sliderPanels.erase(e);
-
-	MenuExitSliderEdit();
-	sliderScroll->FitInside();
-	activeSlider.clear();
-	lastActiveSlider.clear();
-
-	wxString addedDiffs;
+	std::unordered_map<std::string, std::unordered_map<std::string, std::string>> shapeToSliders;
 	auto diffs = osd.GetDataDiffs();
+	const auto& shapes = project->GetWorkNif()->GetShapes();
+	for (auto& diff : diffs) {
+		std::string bestTargetName;
+		for (auto& shape : shapes) {
+			std::string shapeName = shape->name.get();
+			std::string targetName = project->ShapeToTarget(shapeName);
 
-	for (auto& shape : project->GetWorkNif()->GetShapes()) {
-		std::string s = shape->name.get();
-		bool added = false;
-		for (auto& diff : diffs) {
 			// Diff name is supposed to begin with matching shape name
-			if (diff.first.substr(0, s.size()) != s)
+			if (diff.first.substr(0, targetName.size()) != targetName)
 				continue;
 
-			std::string diffName = diff.first.substr(s.length(), diff.first.length() - s.length() + 1);
-			if (!project->ValidSlider(diffName)) {
-				createSliderGUI(diffName, sliderScroll, sliderScroll->GetSizer());
-				project->AddEmptySlider(diffName);
-				ShowSliderEffect(diffName);
-			}
-
-			project->SetSliderFromDiff(diffName, shape, diff.second);
-			added = true;
+			if (shapeName.length() > bestTargetName.length())
+				bestTargetName = targetName;
 		}
 
-		if (added)
-			addedDiffs += s + "\n";
+		if (bestTargetName.length() == 0)
+			continue;
+
+		// Find slider name from data name
+		auto sliderName = project->activeSet.SliderFromDataName(bestTargetName, diff.first);
+		if (sliderName.empty())
+			sliderName = diff.first.substr(bestTargetName.length(), diff.first.length() - bestTargetName.length() + 1);
+
+		shapeToSliders[bestTargetName].emplace(sliderName, diff.first);
+	}
+
+	SliderDataImportDialog import(this, project, OutfitStudioConfig);
+	if (import.ShowModal(shapeToSliders) != wxID_OK)
+		return;
+
+	const auto& options = import.GetOptions();
+
+	sliderScroll->Freeze();
+	if (!options.mergeSliders) {
+		wxMessageDialog dlg(this, _("This will delete all loaded sliders. Are you sure?"), _("OSD Import"), wxOK | wxCANCEL | wxICON_WARNING | wxCANCEL_DEFAULT);
+		dlg.SetOKCancelLabels(_("Import"), _("Cancel"));
+		if (dlg.ShowModal() != wxID_OK) {
+			sliderScroll->Thaw();
+			return;
+		}
+
+		// Deleting sliders
+		std::vector<std::string> erase;
+		for (auto& sliderPanel : sliderPanels) {
+			sliderPanel.second->slider->SetValue(0);
+			SetSliderValue(sliderPanel.first, 0);
+			ShowSliderEffect(sliderPanel.first, true);
+			sliderPanel.second->slider->SetFocus();
+			HideSliderPanel(sliderPanel.second);
+
+			erase.push_back(sliderPanel.first);
+			project->DeleteSlider(sliderPanel.first);
+		}
+
+		for (auto& e : erase)
+			sliderPanels.erase(e);
+
+		MenuExitSliderEdit();
+		sliderScroll->FitInside();
+		activeSlider.clear();
+		lastActiveSlider.clear();
+	}
+
+	std::unordered_set<NiShape*> addedShapes;
+
+	for (auto& shape : shapes) {
+
+		// check if the shape is selected
+		auto selectedSliders = options.selectedShapesToSliders.find(shape->name.get());
+		if (selectedSliders == options.selectedShapesToSliders.end())
+			continue;
+
+		addedShapes.emplace(shape);
+
+        for (auto& diff : diffs) {
+			auto& sliderNameToDisplayName = selectedSliders->second;
+
+			// check the diff is selected for the specific shape
+			auto sliderName = selectedSliders->second.find(diff.first);
+			if (sliderName == sliderNameToDisplayName.end())
+				continue;
+
+			if (!project->ValidSlider(sliderName->second)) {
+				createSliderGUI(sliderName->second, sliderScroll, sliderScroll->GetSizer());
+				project->AddEmptySlider(sliderName->second);
+				ShowSliderEffect(sliderName->second);
+			}
+
+			project->SetSliderFromDiff(sliderName->second, shape, diff.second);
+		}
+	}
+
+	wxString addedDiffs;
+	for (auto& addedShape : addedShapes) {
+		addedDiffs += addedShape->name.get() + "\n";
 	}
 
 	sliderScroll->FitInside();
@@ -7168,11 +7224,6 @@ void OutfitStudioFrame::OnSliderImportTRI(wxCommandEvent& WXUNUSED(event)) {
 	if (fn.IsEmpty())
 		return;
 
-	wxMessageDialog dlg(this, _("This will delete all loaded sliders. Are you sure?"), _("TRI Import"), wxOK | wxCANCEL | wxICON_WARNING | wxCANCEL_DEFAULT);
-	dlg.SetOKCancelLabels(_("Import"), _("Cancel"));
-	if (dlg.ShowModal() != wxID_OK)
-		return;
-
 	wxLogMessage("Importing morphs from TRI file '%s'...", fn);
 
 	TriFile tri;
@@ -7182,37 +7233,73 @@ void OutfitStudioFrame::OnSliderImportTRI(wxCommandEvent& WXUNUSED(event)) {
 		return;
 	}
 
-	// Deleting sliders
-	sliderScroll->Freeze();
-	std::vector<std::string> erase;
-	for (auto& sliderPanel : sliderPanels) {
-		sliderPanel.second->slider->SetValue(0);
-		SetSliderValue(sliderPanel.first, 0);
-		ShowSliderEffect(sliderPanel.first, true);
-		sliderPanel.second->slider->SetFocus();
-		HideSliderPanel(sliderPanel.second);
+	std::unordered_map<std::string, std::unordered_map<std::string, std::string>> shapeToSliders;
+	auto morphs = tri.GetMorphs();
+	for(auto& morph : morphs) {
+		auto shape = project->GetWorkNif()->FindBlockByName<NiShape>(morph.first);
+		if (!shape)
+			continue;
 
-		erase.push_back(sliderPanel.first);
-		project->DeleteSlider(sliderPanel.first);
+		for (auto& morphData : morph.second)
+			shapeToSliders[shape->name.get()].emplace(morphData->name, morphData->name);
 	}
 
-	for (auto& e : erase)
-		sliderPanels.erase(e);
+	SliderDataImportDialog import(this, project, OutfitStudioConfig);
+	if (import.ShowModal(shapeToSliders) != wxID_OK)
+		return;
 
-	MenuExitSliderEdit();
-	sliderScroll->FitInside();
-	activeSlider.clear();
-	lastActiveSlider.clear();
+	const auto& options = import.GetOptions();
+
+	sliderScroll->Freeze();
+	if (!options.mergeSliders) {
+		wxMessageDialog dlg(this, _("This will delete all loaded sliders. Are you sure?"), _("TRI Import"), wxOK | wxCANCEL | wxICON_WARNING | wxCANCEL_DEFAULT);
+		dlg.SetOKCancelLabels(_("Import"), _("Cancel"));
+		if (dlg.ShowModal() != wxID_OK) {
+			sliderScroll->Thaw();
+			return;
+		}
+
+		// Deleting sliders
+		std::vector<std::string> erase;
+		for (auto& sliderPanel : sliderPanels) {
+			sliderPanel.second->slider->SetValue(0);
+			SetSliderValue(sliderPanel.first, 0);
+			ShowSliderEffect(sliderPanel.first, true);
+			sliderPanel.second->slider->SetFocus();
+			HideSliderPanel(sliderPanel.second);
+
+			erase.push_back(sliderPanel.first);
+			project->DeleteSlider(sliderPanel.first);
+		}
+
+		for (auto& e : erase)
+			sliderPanels.erase(e);
+
+		MenuExitSliderEdit();
+		sliderScroll->FitInside();
+		activeSlider.clear();
+		lastActiveSlider.clear();
+	}
 
 	wxString addedMorphs;
-	auto morphs = tri.GetMorphs();
+	std::unordered_set<NiShape*> addedShapes;
+
 	for (auto& morph : morphs) {
 		auto shape = project->GetWorkNif()->FindBlockByName<NiShape>(morph.first);
 		if (!shape)
 			continue;
 
+		// check if the shape is selected
+		auto selectedSliders = options.selectedShapesToSliders.find(shape->name.get());
+		if (selectedSliders == options.selectedShapesToSliders.end())
+			continue;
+
 		addedMorphs += morph.first + "\n";
 		for (auto& morphData : morph.second) {
+			// check the morph is selected for the specific shape
+			if (selectedSliders->second.find(morphData->name) == selectedSliders->second.end())
+				continue;
+
 			if (!project->ValidSlider(morphData->name)) {
 				createSliderGUI(morphData->name, sliderScroll, sliderScroll->GetSizer());
 				project->AddEmptySlider(morphData->name);
@@ -8077,7 +8164,7 @@ void OutfitStudioFrame::OnMoveShape(wxCommandEvent& WXUNUSED(event)) {
 			bool mirrorAxisZ = XRCCTRL(dlg, "mirrorAxisZ", wxCheckBox)->IsChecked();
 
 			UndoStateProject* usp = glView->GetUndoHistory()->PushState();
-			usp->undoType = UT_VERTPOS;
+			usp->undoType = UndoType::VertexPosition;
 
 			for (auto& sel : selectedItems) {
 				mask.clear();
@@ -8233,7 +8320,7 @@ void OutfitStudioFrame::OnScaleShape(wxCommandEvent& WXUNUSED(event)) {
 			}
 
 			UndoStateProject* usp = glView->GetUndoHistory()->PushState();
-			usp->undoType = UT_VERTPOS;
+			usp->undoType = UndoType::VertexPosition;
 
 			for (auto& sel : selectedItems) {
 				mask.clear();
@@ -8422,7 +8509,7 @@ void OutfitStudioFrame::OnRotateShape(wxCommandEvent& WXUNUSED(event)) {
 			}
 
 			UndoStateProject* usp = glView->GetUndoHistory()->PushState();
-			usp->undoType = UT_VERTPOS;
+			usp->undoType = UndoType::VertexPosition;
 
 			for (auto& sel : selectedItems) {
 				mask.clear();
@@ -8545,7 +8632,7 @@ void OutfitStudioFrame::OnDeleteVerts(wxCommandEvent& WXUNUSED(event)) {
 
 	// Prepare the undo data and determine if any shapes are being deleted.
 	UndoStateProject* usp = glView->GetUndoHistory()->PushState();
-	usp->undoType = UT_MESH;
+	usp->undoType = UndoType::Mesh;
 	std::vector<NiShape*> delShapes;
 	for (auto& i : selectedItems) {
 		if (editUV && editUV->shape == i->GetShape())
@@ -8617,7 +8704,7 @@ void OutfitStudioFrame::OnSeparateVerts(wxCommandEvent& WXUNUSED(event)) {
 	auto newShape = project->DuplicateShape(activeItem->GetShape(), newShapeName);
 
 	UndoStateProject* usp = glView->GetUndoHistory()->PushState();
-	usp->undoType = UT_MESH;
+	usp->undoType = UndoType::Mesh;
 	usp->usss.resize(2);
 	usp->usss[0].shapeName = activeItem->GetShape()->name.get();
 	usp->usss[1].shapeName = newShapeName;
@@ -8737,7 +8824,7 @@ void OutfitStudioFrame::OnCopyGeo(wxCommandEvent& WXUNUSED(event)) {
 		return;
 
 	UndoStateProject* usp = glView->GetUndoHistory()->PushState();
-	usp->undoType = UT_MESH;
+	usp->undoType = UndoType::Mesh;
 	usp->usss.resize(1);
 	usp->usss[0].shapeName = targetShapeName;
 
@@ -8794,6 +8881,87 @@ void OutfitStudioFrame::OnDupeShape(wxCommandEvent& WXUNUSED(event)) {
 			SetPendingChanges();
 		}
 	}
+}
+
+void OutfitStudioFrame::OnRefineMesh(wxCommandEvent& WXUNUSED(event)) {
+	if (!activeItem) {
+		wxMessageBox(_("There is no shape selected!"), _("Error"));
+		return;
+	}
+
+	if (bEditSlider) {
+		wxMessageBox(_("You're currently editing slider data, please exit the slider's edit mode (pencil button) and try again."));
+		return;
+	}
+
+	if (selectedItems.size() != 1) {
+		wxMessageBox(_("There is more than one shape selected."), _("Error"));
+		return;
+	}
+
+	// Determine unmasked vertices
+	NiShape* shape = selectedItems[0]->GetShape();
+	size_t nverts = shape->GetNumVertices();
+	std::unordered_map<uint16_t, float> mask;
+	glView->GetShapeUnmasked(mask, shape->name.get());
+	std::vector<bool> pincs(nverts, false);
+	for (auto& m : mask)
+		pincs[m.first] = true;
+
+	// Count unmasked edges
+	std::vector<Triangle> tris;
+	shape->GetTriangles(tris);
+	size_t nedges = 0;
+	for (Triangle& tri : tris) {
+		int ntripts = pincs[tri.p1] + pincs[tri.p2] + pincs[tri.p3];
+		if (ntripts == 3)
+			nedges += 3;
+		else if (ntripts == 2)
+			nedges += 1;
+	}
+
+	// Determine maximum possible vertices and triangles for this Nif type
+	auto workNif = project->GetWorkNif();
+	if (!workNif)
+		return;
+
+	constexpr size_t maxVertIndex = std::numeric_limits<uint16_t>().max();
+	size_t maxTriIndex = std::numeric_limits<uint16_t>().max();
+
+	if (workNif->GetHeader().GetVersion().IsFO4() || workNif->GetHeader().GetVersion().IsFO76())
+		maxTriIndex = std::numeric_limits<uint32_t>().max();
+
+	// Check if we'll overflow the vertex or triangle arrays.
+	// Note that the actual number of vertices added could be as low as
+	// nedges/2; nedges is the upper bound (if every edge is welded or
+	// boundary).
+	if (nverts + nedges > maxVertIndex) {
+		wxMessageBox(_("The shape has reached the vertex count limit."), _("Error"), wxICON_ERROR);
+		return;
+	}
+
+	if (shape->GetNumTriangles() + nedges > maxTriIndex) {
+		wxMessageBox(_("The shape has reached the triangle count limit."), _("Error"), wxICON_ERROR);
+		return;
+	}
+
+	// Prepare list of changes
+	UndoStateShape uss;
+	uss.shapeName = shape->name.get();
+	mesh* m = glView->GetMesh(shape->name.get());
+	if (!project->PrepareRefineMesh(shape, uss, pincs, m->weldVerts)) {
+		wxMessageBox(_("An edge has multiple triangles of the same orientation.  Correct the orientations before splitting."), _("Error"), wxICON_ERROR);
+		return;
+	}
+
+	// Push changes onto undo stack and execute.
+	UndoStateProject* usp = glView->GetUndoHistory()->PushState();
+	usp->undoType = UndoType::Mesh;
+	usp->usss.push_back(std::move(uss));
+	glView->ApplyUndoState(usp, false);
+
+	UpdateUndoTools();
+	SetPendingChanges();
 }
 
 void OutfitStudioFrame::OnDeleteShape(wxCommandEvent& WXUNUSED(event)) {
@@ -9289,7 +9457,7 @@ int OutfitStudioFrame::CopyBoneWeightForShapes(std::vector<NiShape*> shapes, boo
 		StartProgress(_("Copying bone weights..."));
 
 		UndoStateProject* usp = glView->GetUndoHistory()->PushState();
-		usp->undoType = UT_WEIGHT;
+		usp->undoType = UndoType::Weight;
 
 		std::vector<std::string> baseBones = workAnim.shapeBones[project->GetBaseShape()->name.get()];
 		std::sort(baseBones.begin(), baseBones.end());
@@ -9397,7 +9565,7 @@ void OutfitStudioFrame::OnCopySelectedWeight(wxCommandEvent& WXUNUSED(event)) {
 		StartProgress(_("Copying selected bone weights..."));
 
 		UndoStateProject* usp = glView->GetUndoHistory()->PushState();
-		usp->undoType = UT_WEIGHT;
+		usp->undoType = UndoType::Weight;
 		std::unordered_map<uint16_t, float> mask;
 		for (size_t i = 0; i < selectedItems.size(); i++) {
 			NiShape* shape = selectedItems[i]->GetShape();
@@ -10415,7 +10583,7 @@ void wxGLPanel::OnKeys(wxKeyEvent& event) {
 
 					// Push changes onto undo stack and execute
 					UndoStateProject* usp = GetUndoHistory()->PushState();
-					usp->undoType = UT_VERTPOS;
+					usp->undoType = UndoType::VertexPosition;
 					usp->usss.push_back(std::move(uss));
 
 					if (os->bEditSlider) {
@@ -10638,7 +10806,7 @@ bool wxGLPanel::StartBrushStroke(const wxPoint& screenPos) {
 
 	activeBrush->setRadius(brushSize);
 
-	if (activeBrush->Type() == TBT_WEIGHT) {
+	if (activeBrush->Type() == TweakBrush::BrushType::Weight) {
 		for (auto& sel : os->GetSelectedItems()) {
 			os->project->GetWorkNif()->CreateSkinning(sel->GetShape());
 
@@ -10659,7 +10827,7 @@ bool wxGLPanel::StartBrushStroke(const wxPoint& screenPos) {
 		activeStroke->usp.sliderscale = sliderscale;
 	}
 
-	if (activeBrush->Type() == TBT_UNDIFF) {
+	if (activeBrush->Type() == TweakBrush::BrushType::Undiff) {
 		std::vector<mesh*> refMeshes = activeStroke->GetRefMeshes();
 
 		std::vector<std::vector<Vector3>> positionData;
@@ -10686,7 +10854,7 @@ bool wxGLPanel::StartBrushStroke(const wxPoint& screenPos) {
 	else
 		activeStroke->beginStroke(tpi);
 
-	if (activeBrush->Type() != TBT_MOVE)
+	if (activeBrush->Type() != TweakBrush::BrushType::Move)
 		activeStroke->updateStroke(tpi);
 
 	return true;
@@ -10703,7 +10871,7 @@ void wxGLPanel::UpdateBrushStroke(const wxPoint& screenPos) {
 	if (activeStroke) {
 		bool hit = gls.UpdateCursor(screenPos.x, screenPos.y, bGlobalBrushCollision);
 
-		if (activeBrush->Type() == TBT_MOVE) {
+		if (activeBrush->Type() == TweakBrush::BrushType::Move) {
 			Vector3 pn;
 			float pd;
 			((TB_Move*)activeBrush)->GetWorkingPlane(pn, pd);
@@ -10729,7 +10897,7 @@ void wxGLPanel::UpdateBrushStroke(const wxPoint& screenPos) {
 		tpi.view = v;
 		activeStroke->updateStroke(tpi);
 
-		if (activeBrush->Type() == TBT_WEIGHT) {
+		if (activeBrush->Type() == TweakBrush::BrushType::Weight) {
 			std::string selectedBone = os->GetActiveBone();
 			if (!selectedBone.empty()) {
 				os->ActiveShapesUpdated(undoHistory.GetCurState(), false);
@@ -10754,11 +10922,11 @@ void wxGLPanel::EndBrushStroke() {
 	if (activeStroke) {
 		activeStroke->endStroke();
 
-		int brushType = activeStroke->BrushType();
-		if (brushType != TBT_MASK) {
+		TweakBrush::BrushType brushType = activeStroke->BrushType();
+		if (brushType != TweakBrush::BrushType::Mask) {
 			os->ActiveShapesUpdated(undoHistory.GetCurState());
 
-			if (brushType == TBT_WEIGHT) {
+			if (brushType == TweakBrush::BrushType::Weight) {
 				std::string selectedBone = os->GetActiveBone();
 				if (!selectedBone.empty()) {
 					int boneScalePos = os->boneScale->GetValue();
@@ -10770,7 +10938,7 @@ void wxGLPanel::EndBrushStroke() {
 				}
 			}
 
-			if (!os->bEditSlider && brushType != TBT_WEIGHT && brushType != TBT_COLOR && brushType != TBT_ALPHA) {
+			if (!os->bEditSlider && brushType != TweakBrush::BrushType::Weight && brushType != TweakBrush::BrushType::Color && brushType != TweakBrush::BrushType::Alpha) {
 				for (auto& s : os->project->GetWorkNif()->GetShapes()) {
 					os->UpdateShapeSource(s);
 					os->project->RefreshMorphShape(s);
@@ -11089,11 +11257,12 @@ void wxGLPanel::ClickCollapseVertex() {
 
 	// Push changes onto undo stack and execute.
 	UndoStateProject* usp = GetUndoHistory()->PushState();
-	usp->undoType = UT_MESH;
+	usp->undoType = UndoType::Mesh;
 	usp->usss.push_back(std::move(uss));
 	ApplyUndoState(usp, false);
 
 	os->UpdateUndoTools();
+	os->SetPendingChanges();
 }
 
 bool wxGLPanel::StartPickEdge() {
@@ -11147,11 +11316,12 @@ void wxGLPanel::ClickFlipEdge() {
 
 	// Push changes onto undo stack and execute.
 	UndoStateProject* usp = GetUndoHistory()->PushState();
-	usp->undoType = UT_MESH;
+	usp->undoType = UndoType::Mesh;
 	usp->usss.push_back(std::move(uss));
 	ApplyUndoState(usp, false);
 
 	os->UpdateUndoTools();
+	os->SetPendingChanges();
 }
 
 void wxGLPanel::ClickSplitEdge() {
@@ -11170,7 +11340,7 @@ void wxGLPanel::ClickSplitEdge() {
 	if (!shape)
 		return;
 
-	uint16_t maxVertIndex = std::numeric_limits<uint16_t>().max();
+	constexpr uint16_t maxVertIndex = std::numeric_limits<uint16_t>().max();
 	uint32_t maxTriIndex = std::numeric_limits<uint16_t>().max();
 
 	if (workNif->GetHeader().GetVersion().IsFO4() || workNif->GetHeader().GetVersion().IsFO76())
@@ -11186,54 +11356,45 @@ void wxGLPanel::ClickSplitEdge() {
 		return;
 	}
 
-	// Collect welded vertices
-	uint16_t p1 = mouseDownEdge.p1;
-	uint16_t p2 = mouseDownEdge.p2;
-	std::vector<uint16_t> p1s(1, p1);
-	std::vector<uint16_t> p2s(1, p2);
-
-	auto wvit = m->weldVerts.find(p1);
-	if (wvit != m->weldVerts.end())
-		std::copy(wvit->second.begin(), wvit->second.end(), std::back_inserter(p1s));
-
-	wvit = m->weldVerts.find(p2);
-	if (wvit != m->weldVerts.end())
-		std::copy(wvit->second.begin(), wvit->second.end(), std::back_inserter(p2s));
+	std::vector<bool> pincs(shape->GetNumVertices(), false);
+	pincs[mouseDownEdge.p1] = true;
+	pincs[mouseDownEdge.p2] = true;
 
 	// Prepare list of changes
 	UndoStateShape uss;
 	uss.shapeName = mouseDownMeshName;
-	if (!os->project->PrepareSplitEdge(shape, uss, p1s, p2s)) {
+	if (!os->project->PrepareRefineMesh(shape, uss, pincs, m->weldVerts)) {
 		wxMessageBox(_("The edge picked has multiple triangles of the same orientation.  Correct the orientations before splitting."), _("Error"), wxICON_ERROR, os);
 		return;
 	}
 
 	// Push changes onto undo stack and execute.
 	UndoStateProject* usp = GetUndoHistory()->PushState();
-	usp->undoType = UT_MESH;
+	usp->undoType = UndoType::Mesh;
 	usp->usss.push_back(std::move(uss));
 	ApplyUndoState(usp, false);
 
 	os->UpdateUndoTools();
+	os->SetPendingChanges();
 }
 
 bool wxGLPanel::RestoreMode(UndoStateProject* usp) {
 	bool modeChanged = false;
-	int undoType = usp->undoType;
-	if (undoType == UT_VERTPOS && os->activeSlider != usp->sliderName) {
+	UndoType undoType = usp->undoType;
+	if (undoType == UndoType::VertexPosition && os->activeSlider != usp->sliderName) {
 		os->EnterSliderEdit(usp->sliderName);
 		modeChanged = true;
 	}
-	if ((undoType != UT_VERTPOS || usp->sliderName.empty()) && os->bEditSlider) {
+	if ((undoType != UndoType::VertexPosition || usp->sliderName.empty()) && os->bEditSlider) {
 		os->ExitSliderEdit();
 		modeChanged = true;
 	}
-	if (undoType == UT_VERTPOS && !usp->sliderName.empty() && usp->sliderscale != os->project->SliderValue(usp->sliderName)) {
+	if (undoType == UndoType::VertexPosition && !usp->sliderName.empty() && usp->sliderscale != os->project->SliderValue(usp->sliderName)) {
 		os->SetSliderValue(usp->sliderName, usp->sliderscale * 100);
 		os->ApplySliders();
 		modeChanged = true;
 	}
-	if (undoType == UT_VERTPOS && usp->sliderName.empty() && !os->project->AllSlidersZero()) {
+	if (undoType == UndoType::VertexPosition && usp->sliderName.empty() && !os->project->AllSlidersZero()) {
 		os->ZeroSliders();
 		modeChanged = true;
 	}
@@ -11241,8 +11402,8 @@ bool wxGLPanel::RestoreMode(UndoStateProject* usp) {
 }
 
 void wxGLPanel::ApplyUndoState(UndoStateProject* usp, bool bUndo, bool bRender) {
-	int undoType = usp->undoType;
-	if (undoType == UT_WEIGHT) {
+	UndoType undoType = usp->undoType;
+	if (undoType == UndoType::Weight) {
 		for (auto& uss : usp->usss) {
 			mesh* m = GetMesh(uss.shapeName);
 			if (!m)
@@ -11268,7 +11429,7 @@ void wxGLPanel::ApplyUndoState(UndoStateProject* usp, bool bUndo, bool bRender) 
 				os->project->ApplyBoneScale(activeBone, boneScalePos, true);
 		}
 	}
-	else if (undoType == UT_MASK) {
+	else if (undoType == UndoType::Mask) {
 		for (auto& uss : usp->usss) {
 			mesh* m = GetMesh(uss.shapeName);
 			if (!m)
@@ -11280,10 +11441,10 @@ void wxGLPanel::ApplyUndoState(UndoStateProject* usp, bool bUndo, bool bRender) 
 			m->QueueUpdate(mesh::UpdateType::Mask);
 		}
 
-		if (undoType != UT_MASK)
+		if (undoType != UndoType::Mask)
 			os->ActiveShapesUpdated(usp, bUndo);
 	}
-	else if (undoType == UT_COLOR) {
+	else if (undoType == UndoType::Color) {
 		for (auto& uss : usp->usss) {
 			mesh* m = GetMesh(uss.shapeName);
 			if (!m)
@@ -11295,10 +11456,10 @@ void wxGLPanel::ApplyUndoState(UndoStateProject* usp, bool bUndo, bool bRender) 
 			m->QueueUpdate(mesh::UpdateType::VertexColors);
 		}
 
-		if (undoType != UT_COLOR)
+		if (undoType != UndoType::Color)
 			os->ActiveShapesUpdated(usp, bUndo);
 	}
-	else if (undoType == UT_ALPHA) {
+	else if (undoType == UndoType::Alpha) {
 		for (auto& uss : usp->usss) {
 			mesh* m = GetMesh(uss.shapeName);
 			if (!m)
@@ -11312,7 +11473,7 @@ void wxGLPanel::ApplyUndoState(UndoStateProject* usp, bool bUndo, bool bRender) 
 
 		os->ActiveShapesUpdated(usp, bUndo);
 	}
-	else if (undoType == UT_VERTPOS) {
+	else if (undoType == UndoType::VertexPosition) {
 		for (auto& uss : usp->usss) {
 			mesh* m = GetMesh(uss.shapeName);
 			if (!m)
@@ -11341,7 +11502,7 @@ void wxGLPanel::ApplyUndoState(UndoStateProject* usp, bool bUndo, bool bRender) 
 			}
 		}
 	}
-	else if (undoType == UT_MESH) {
+	else if (undoType == UndoType::Mesh) {
 		for (auto& uss : usp->usss) {
 			NiShape* shape = os->project->GetWorkNif()->FindBlockByName<NiShape>(uss.shapeName);
 			if (!shape)
@@ -12135,9 +12296,9 @@ void wxGLPanel::OnMouseMove(wxMouseEvent& event) {
 		if (os->statusBar) {
 			if (cursorExists) {
 				if (activeTool == ToolID::MaskBrush)
-					os->statusBar->SetStatusText(wxString::Format("Vertex: %d, Mask: %g", hitResult.hoverPoint, hitResult.hoverColor.x), 1);
+					os->statusBar->SetStatusText(wxString::Format("Vertex: %d, Mask: %g", hitResult.hoverPoint, hitResult.hoverMask), 1);
 				else if (activeTool == ToolID::WeightBrush)
-					os->statusBar->SetStatusText(wxString::Format("Vertex: %d, Weight: %g", hitResult.hoverPoint, hitResult.hoverColor.y), 1);
+					os->statusBar->SetStatusText(wxString::Format("Vertex: %d, Weight: %g", hitResult.hoverPoint, hitResult.hoverWeight), 1);
 				else if (activeTool == ToolID::ColorBrush || activeTool == ToolID::AlphaBrush)
 					os->statusBar->SetStatusText(wxString::Format("Vertex: %d, Color: %g, %g, %g, Alpha: %g",
 																  hitResult.hoverPoint,

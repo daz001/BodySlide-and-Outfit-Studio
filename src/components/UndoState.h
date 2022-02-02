@@ -12,7 +12,7 @@ See the included LICENSE file
 #include <unordered_set>
 #include <vector>
 
-enum UndoType { UT_VERTPOS, UT_MASK, UT_WEIGHT, UT_COLOR, UT_ALPHA, UT_MESH };
+enum class UndoType { VertexPosition, Mask, Weight, Color, Alpha, Mesh };
 
 struct UndoStateVertexWeight {
 	float startVal, endVal;
@@ -34,20 +34,20 @@ struct UndoStateVertexSliderDiff {
 };
 
 struct UndoStateVertex {
-	uint16_t index;		// index into array of vertices
+	uint16_t index = 0; // index into array of vertices
 	nifly::Vector3 pos; // position in skin coordinates
 	nifly::Vector2 uv;
 	nifly::Color4 color;
 	// normal, tangent, and bitangent are in skin CS tangent space (so
 	// only the rotation part of transforms affects them).
 	nifly::Vector3 normal, tangent, bitangent;
-	float eyeData;
+	float eyeData = 0.0f;
 	std::vector<UndoStateVertexBoneWeight> weights;
 	std::vector<UndoStateVertexSliderDiff> diffs;
 };
 
 struct UndoStateTriangle {
-	uint32_t index; // index into array of triangles
+	uint32_t index = 0; // index into array of triangles
 	nifly::Triangle t;
 	int partID = -1; // partition ID if there are partitions or segments
 };
@@ -59,24 +59,26 @@ inline bool operator<(const UndoStateTriangle& t1, const UndoStateTriangle& t2) 
 struct UndoStateShape {
 	std::string shapeName;
 	// pointStartState and pointEndState are only meaningful for
-	// UT_VERTPOS, UT_MASK, UT_COLOR, and UT_ALPHA.
-	// For UT_MASK and UT_ALPHA, only the x coordinate is meaningful.
+	// UndoType::VertexPosition, UndoType::Mask, UndoType::Color,
+	// and UndoType::Alpha.
+	// For UndoType::Mask and UndoType::Alpha, only the x coordinate
+	// is meaningful.
 	std::unordered_map<int, nifly::Vector3> pointStartState;
 	std::unordered_map<int, nifly::Vector3> pointEndState;
-	// boneWeights is only meaningful for UT_WEIGHT.
+	// boneWeights is only meaningful for UndoType::Weight.
 	std::vector<UndoStateBoneWeights> boneWeights;
 	// delVerts, addVerts, delTris, and addTris are only meaningful for
-	// UT_MESH.  They are stored in sorted order by index.
+	// UndoType::Mesh.  They are stored in sorted order by index.
 	std::vector<UndoStateVertex> delVerts, addVerts;
 	std::vector<UndoStateTriangle> delTris, addTris;
 };
 
 struct UndoStateProject {
-	UndoType undoType;
+	UndoType undoType = UndoType::VertexPosition;
 	std::vector<UndoStateShape> usss;
-	// if undoType is UT_VERTPOS and sliderName is not empty, this is
-	// a slider shape edit rather than a base shape edit.
+	// if undoType is UndoType::VertexPosition and sliderName is not empty,
+	// this is a slider shape edit rather than a base shape edit.
 	std::string sliderName;
 	// sliderscale is only set if this is a slider shape edit.  Non-zero.
-	float sliderscale;
+	float sliderscale = 1.0f;
 };
